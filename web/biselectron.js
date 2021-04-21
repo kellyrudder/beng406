@@ -40,12 +40,18 @@ let getTime = function() {
 // -------------------------------------------------------------------------------
 
 const electron = require('electron');
+require('@electron/remote/main').initialize();
 require('electron-debug')({showDevTools: false,
                            enabled : true});
 
 const path=require('path');
 const fs=require('fs');
 const app=electron.app;  // Module to control application life.
+const globalShortcut=electron.globalShortcut;
+
+app.commandLine.appendSwitch('auto-detect', 'false');
+app.commandLine.appendSwitch('no-proxy-server');
+
 const BrowserWindow = electron.BrowserWindow;  // Module to create native browser window.
 const ipcMain = electron.ipcMain;
 const shell=electron.shell;
@@ -71,18 +77,11 @@ const state = {
 let v=process.versions.node;
 let s=v.split(".");
 let major=parseInt(s[0]);
-let minor=parseInt(s[1]);
 
-if (major<8 || (major===8 && minor<9)) {
-    console.log(`----\n---- You are using a version of node older than 8.9 (actual version=${v}). You need to update to electron v2.0.\n`);
+if (major!==12) {
+    console.log(`----\n---- You are using a version of node older than 12.0 (actual version=${v}). You need to update to electron v2.0.\n`);
     process.exit(1);
 }
-
-if (major===9) {
-    console.log(`----\n---- You are using a version of node that is 9.x (actual version=${v})\n`);
-    process.exit(1);
-}
-
 
 if (state.indev) {
     state.commandargs= process.argv.slice(3) || [];
@@ -96,10 +95,16 @@ if (state.indev) {
 
 
 state.mainfilename=state.mainfilename || "";
+state.queryargs='';
 // Check if filename ends in .html if not add it
 if (state.mainfilename!=='') {
 
-
+    if (state.mainfilename.indexOf('?')>0) {
+        let st=state.mainfilename.split('?');
+        state.mainfilename=st[0];
+        state.queryargs=st[1];
+    }
+        
     let ext=state.mainfilename.split('.').pop();
     if (ext!=='html')  {
         state.toolname=state.mainfilename;
@@ -107,13 +112,37 @@ if (state.mainfilename!=='') {
     }
 }
 
+const biswebTerminate=function(code=0) {
+    app.quit(code);
+};
+
+const macExitQuestion=function() {
+
+    return new Promise( (resolve,reject) => setTimeout( async () => {
+        const dialog = electron.dialog;
+        
+        const response=await dialog.showMessageBox({
+            title : "Are you sure?",
+            type  : "question",
+            buttons : [ "Cancel", "Quit" ],
+            defaultId : 0,
+            message : "This will terminate BioImage Suite Web. Are you sure?",
+        });
+        
+        if (response.response===1)
+            resolve('exiting');
+        else
+            reject('quit event cancelled');
+    }));
+};                
+
 // ----------------------------------------------------------------------------------------
-var getHeightWidth= function(name) {
+const getHeightWidth= function(name) {
 
     let tools=toolfile.tools;
     
     const obj = {
-        height : 900,
+        height : 1120,
         width : 1024
     };
 
@@ -123,11 +152,11 @@ var getHeightWidth= function(name) {
     
     let found=false,i=0;
     let keys=Object.keys(tools);
-    
+
     while (i<keys.length && found===false) {
         let url=tools[keys[i]].url;
-        if (url===name) {
-            obj.height= tools[keys[i]].height || 900;
+        if (name.indexOf(url)===0) {
+            obj.height= tools[keys[i]].height || 950;
             obj.width= tools[keys[i]].width || 700;
             obj.height=Math.round(obj.height*scale);
             obj.width=Math.round(obj.width*scale);
@@ -140,9 +169,6 @@ var getHeightWidth= function(name) {
     if (!found && name.indexOf("test")>0) {
         obj.width=maxw;
         obj.height=maxh;
-    } else if (!found && name.indexOf("index")>=0) {
-        obj.width=Math.round(650*scale);
-        obj.height=Math.round(600*scale);
     }
 
     
@@ -161,7 +187,7 @@ var getHeightWidth= function(name) {
     return obj;
 };
 
-var createWindow=function(index,fullURL) {
+const createWindow=function(index,fullURL) {
 
     fullURL = fullURL || state.toolname;
     let i0=fullURL.lastIndexOf("\\");
@@ -183,14 +209,12 @@ var createWindow=function(index,fullURL) {
     }
         
     state.dimensions=getHeightWidth(name);
-
-
     
     let i_width= state.dimensions.width;
     let i_height= state.dimensions.height;
 
-    var xval=100;
-    var yval=100;
+    let xval=100;
+    let yval=100;
     
     if (index==-2) {
         index=state.winlist.length;
@@ -207,6 +231,7 @@ var createWindow=function(index,fullURL) {
         yval=undefined;
     }  
 
+    
     let opts= { width: i_width,
                 height: i_height,
                 maxwidth: state.screensize.width,
@@ -229,20 +254,14 @@ var createWindow=function(index,fullURL) {
             yval=undefined;
     }
 
-/*    let i=fullURL.indexOf('biswebtest');
-    if (i>=0) {
-        xval=0;
-        yval=0;
-        opts.width=state.screensize.width;
-        opts.height=state.screensize.height;
-    }*/
+    if (state.queryargs!=='') {
+        fullURL=fullURL+'?'+state.queryargs;
+        state.queryargs='';
+    }
     
-    
-
-    
-    var preload=  path.resolve(__dirname, 'bispreload.js');
+    let preload=  path.resolve(__dirname, 'bispreload.js');
     console.log(getTime()+' Creating new window '+fullURL + ', index='+index+' dims='+JSON.stringify(opts));
-    //    console.log(getTime()+' Screen size = '+[state.screensize.width,state.screensize.height]+' size='+[opts.width,opts.height]);
+
     state.winlist[index]=new BrowserWindow({width: opts.width,
                                             height: opts.height,
                                             maxWidth: opts.maxwidth,
@@ -254,10 +273,12 @@ var createWindow=function(index,fullURL) {
                                                 nodeIntegration: false,
                                                 preload: preload,
                                                 contextIsolation: false,
+                                                enableRemoteModule : true,
                                             },
+                                            autoHideMenuBar : true,
                                             icon: __dirname+'/images/favicon.ico'});
     
-    state.winlist[index].setAutoHideMenuBar(true);
+    //state.winlist[index].setAutoHideMenuBar(true);
     state.winlist[index].setMenuBarVisibility(false);
     if (process.platform === 'darwin') 
         state.winlist[index].setMenu(null);
@@ -268,61 +289,30 @@ var createWindow=function(index,fullURL) {
     
     state.winlist[index].on('closed', function() {
         state.winlist[index] = null;
-        
-        var anyalive=false;
-        state.winlist.forEach(function(e) {
-            if (e!==null)
-                anyalive=true;
-        });
-        
-        if (process.platform === 'darwin')  {
-            if (!anyalive)
-                macExit(true);
-            return;
-        }
-
-        if (anyalive===false) {
-            if (state.console) {
-                state.console.hide();
-            }
-            state.console=null;
-            process.exit(0);
-        }
     });
-    state.winlist[index].loadURL(fullURL);
+
+
+    console.log('Loading URL',fullURL);
+    state.winlist[index].loadURL(fullURL).then( () => {
+        console.log('.... Loaded URL=',fullURL);
+    }).catch( (e) => {
+        console.log('.... Failed to load ',fullURL,', error=',e);
+        setTimeout( () => {
+            console.log('... Trying to load again',fullURL);
+            state.winlist[index].loadURL(fullURL);
+        },1000);
+    });
+
     return index;
 };
 
-var macExit=function(ask=false) {
-
-    let anyalive=false;
-    state.winlist.forEach(function(e) {
-        if (e!==null)
-            anyalive=true;
-    });
-
-    if (anyalive===false && ask===false)
-        process.exit();
-
-    const dialog = electron.dialog;
-    dialog.showMessageBox({
-        title : "Are you sure?",
-        type  : "question",
-        buttons : [ "Cancel", "Quit" ],
-        defaultId : 0,
-        message : "This will close all open BioImage Suite Web Applications",
-    }, (f) => { 
-        if (f===1)
-            process.exit();
-    });
-};
 
 var createConsole=function() {
 
-    var opts= {width: 800, height: 500};
-    var fullURL='file://' + path.resolve(__dirname , 'console.html');
+    let opts= {width: 800, height: 500};
+    let fullURL='file://' + path.resolve(__dirname , 'console.html');
 
-    var preload=  path.resolve(__dirname, 'bispreload.js');
+    let preload=  path.resolve(__dirname, 'bispreload.js');
     state.console=new BrowserWindow({width: opts.width,
                                      height: opts.height,
                                      webPreferences: {
@@ -351,16 +341,21 @@ var createConsole=function() {
 
 };
 
-var attachWindow=function(index) {
+var trapOpenNewWindowEvent=function(index) {
 
+    console.log('Attaching',index);
+    
     state.winlist[index].webContents.on('new-window',function(event,url/*,frameName,disposition,options*/) {
 
+        console.log('webcontents url=',url);
+        
         event.preventDefault(); 
-        var lm=url.split("/"), fname=lm[lm.length-1], domain=false;
+        let lm=url.split("/"), fname=lm[lm.length-1], ismainwindow=false;
         if (fname==="index.html") {
-            domain=true;
+            ismainwindow=true;
             if (state.winlist[0]!==null) {
                 state.winlist[0].show();
+                console.log('.... link was to index.html showing main window');
                 return;
             }
         }
@@ -368,35 +363,42 @@ var attachWindow=function(index) {
         if (url.indexOf('http://')===0 ||
             url.indexOf('https://')===0 
            ) {
-            //      console.log(getTime()+' Electron opening ' + url + ' in browser.');
+            console.log(getTime()+' Electron opening ' + url + ' in browser.');
             shell.openExternal(url);
             return;
         }
 
         
-        var index=state.winlist.length;
-        if (domain===true)
+        let index=state.winlist.length;
+        if (ismainwindow)
             index=0;
-        
+
+        console.log('....\n.... creating new window from webpage ... loading url=',index,url);
         createWindow(index,url);
-        attachWindow(index);
+        trapOpenNewWindowEvent(index);
+        
     });
 };
 
 
 var createNewWindow = function(url) {
 
-    var index=createWindow(-2,url);
-    attachWindow(index);
+    console.log('....\n..... create new window',url);
+    const index=createWindow(-2,url);
+    trapOpenNewWindowEvent(index);
 };
 
-var createOrShowMainWindow = function() {
+var createOrShowMainWindow = function(hide=false) {
     if (state.winlist[0]!==null) {
         state.winlist[0].show();
         return;
     }
+    console.log('....\n..... create or show main window');
     createWindow(0);
-    attachWindow(0);
+    trapOpenNewWindowEvent(0);
+    if (hide) {
+        state.winlist[0].minimize();
+    }
 };
 
 
@@ -409,10 +411,20 @@ var createOrShowMainWindow = function() {
 app.on('window-all-closed', function() {
     // On OS X it is common for applications and their menu bar
     // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
-        app.quit();
+    if (process.platform !== 'darwin')  {
+        biswebTerminate();
+        return;
     }
-    
+
+    if (process.platform === 'darwin')  {
+        macExitQuestion().then( (m) => {
+            console.log('.... exiting',m);
+            biswebTerminate(0);
+        }).catch( (e) => {
+            console.log('.... not exiting',e);
+            createOrShowMainWindow(true); 
+        });
+    }
 });
 
 
@@ -420,10 +432,10 @@ app.on('window-all-closed', function() {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.on('ready', function() {
+app.on('ready', async function() {
 
-    var setup=toolfile;
-    var keys=Object.keys(setup.tools);
+    let setup=toolfile;
+    let keys=Object.keys(setup.tools);
     let fullURL='';
     if (state.mainfilename.length>1) {
         console.log(getTime()+' Testing starting file=',state.mainfilename);
@@ -436,6 +448,9 @@ app.on('ready', function() {
         }
     }
     console.log(getTime()+' Electron ready ' + state.mainfilename + ' indev='+state.indev);
+    if (state.queryargs.length>0) {
+        console.log(getTime()+' \t Query args= "'+state.queryargs+'"');
+    }
     if (state.commandargs.length>0) {
         console.log(getTime()+' Command args='+state.commandargs);
     }
@@ -449,21 +464,15 @@ app.on('ready', function() {
     if (state.screensize.height<700)
         state.screensize.height=700;
 
-    if (state.mainfilename === '') {
-        createOrShowMainWindow();
-    } else {
-        createNewWindow("file://"+fullURL);
-    }
-
-    var tools=setup.tools;
+    let tools=setup.tools;
     const Menu=electron.Menu;
-    var mitems=[];
-    var i=0;
+    let mitems=[];
+    let i=0;
     
     if (process.platform === 'darwin') {
         for (i=0;i<keys.length;i++)  {
-            var key=keys[i]; 
-            var a='file://'+path.resolve(__dirname , tools[key].url+'.html'); // jshint ignore:line
+            let key=keys[i]; 
+            let a='file://'+path.resolve(__dirname , tools[key].url+'.html'); // jshint ignore:line
             /* jshint ignore:start */
             (function outer(a){
                 mitems.push({ label: tools[key].title, click: () =>{
@@ -473,20 +482,23 @@ app.on('ready', function() {
             /* jshint ignore:end */
         }
         
-        var menu=Menu.buildFromTemplate([
+        let menu=Menu.buildFromTemplate([
             {  label: "Application Selector", click: () => { createOrShowMainWindow(); }},
             {  label: 'Tools', submenu : mitems }
         ]);
 
-        var menu2=Menu.buildFromTemplate([
+        let menu2=Menu.buildFromTemplate([
             {  label: 'Main',  
                submenu : [
                    {  label: "Application Selector", click: () => { createOrShowMainWindow(); }},
                    {   type: 'separator'},
                    { 
-                       label : 'Exit', 
-                       click: () => { 
-                           macExit();
+                       label : 'Exit ⌘Q', click: () => {
+                           macExitQuestion().then( () => {
+                               biswebTerminate();
+                           }).catch( (e) => {
+                               console.log(e);
+                           });
                        }
                    }
                ]
@@ -498,9 +510,34 @@ app.on('ready', function() {
         app.dock.setMenu(menu);
         Menu.setApplicationMenu(menu2);
     }
+
+    if (process.platform === 'darwin')  {
+        globalShortcut.register('CommandOrControl+Q', () => {
+            macExitQuestion().then( () => {
+                biswebTerminate(0);
+            }).catch( (e) => {
+                console.log('Anyalive'+e);
+                createOrShowMainWindow(); 
+            });
+        });
+    }
+
+    setTimeout( () => {
+        if (state.mainfilename === '') {
+            createOrShowMainWindow();
+        } else {
+            createNewWindow("file://"+fullURL);
+        }
+    },100);
+
+
 });
 
-app.on('activate', () => { createOrShowMainWindow();});
+app.on('activate', () => {
+    setTimeout( () => {
+        createOrShowMainWindow();
+    },500);
+});
 
 
 ipcMain.on('ping', function (event, arg) {
@@ -508,7 +545,7 @@ ipcMain.on('ping', function (event, arg) {
 });
 
 ipcMain.on('showdevtools', function () {
-    var win = BrowserWindow.getFocusedWindow();
+    let win = BrowserWindow.getFocusedWindow();
     if (win) {
         win.webContents.openDevTools();
     }

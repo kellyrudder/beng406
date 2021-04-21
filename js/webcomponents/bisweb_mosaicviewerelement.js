@@ -15,8 +15,6 @@
  
  ENDLICENSE */
 
-/* global window,document*/
-
 "use strict";
 
 
@@ -168,7 +166,7 @@ class MosaicViewerElement extends BaseViewerElement {
     createsliceview(renderer,vol,orthoslice,index,width,depth) {
         
         let plane=orthoslice.getplane();
-        let subviewer=new BisWebSubViewer(renderer,plane,
+        let subviewer=new BisWebSubViewer(this,renderer,plane,
                                           this.computeviewport(index),
                                           orthoslice,
                                           {
@@ -322,6 +320,7 @@ class MosaicViewerElement extends BaseViewerElement {
             }
         }
         context.restore();
+        this.informToRender();
         this.drawcolorscale();
     }
     
@@ -365,7 +364,7 @@ class MosaicViewerElement extends BaseViewerElement {
         if (this.internal.overlayslices!==null)
             hasoverlay=true;
         this.ensureviewersexist(hasoverlay);
-
+        
         let objmapframe=this.internal.frame;
         if (objmapframe>=this.internal.objectmapnumframes)
             objmapframe=this.internal.objectmapnumframes-1;
@@ -384,6 +383,7 @@ class MosaicViewerElement extends BaseViewerElement {
             }
         }
         this.drawlabels();
+        this.informToRender();
         this.updateFrameChangedObservers();
     }
     
@@ -392,7 +392,8 @@ class MosaicViewerElement extends BaseViewerElement {
         
         if (this.internal.subviewers===null)
             return;
-        
+
+        this.informToRender();
         var n=util.range(Math.round(rows||0),1,MAXROWS);
         var c=util.range(Math.round(cols||0),1,MAXCOLS);
         
@@ -423,48 +424,8 @@ class MosaicViewerElement extends BaseViewerElement {
      * @param {BisF.ColorMapControllerPayload} input - definition of new transfer functions to use
      */
     updatetransferfunctions(input) {
-
-        var dooverlay=false;
-        if (this.internal.overlayslices!==null) {
-            if ( this.internal.overlayslices[0]!==null ) {
-                dooverlay=true;
-            }
-        }
-        
-        var pl=0;
-        var numviewers=this.internal.numrows*this.internal.numcols;
-        
-        if (input.image!==null) {
-            this.internal.imagetransferfunction=input.image;
-            for (pl=0;pl<numviewers;pl++) {
-                if (this.internal.slices[pl]!==null) {
-                    this.internal.slices[pl].setnexttimeforce();
-                }
-            }
-        }
-        
-        for (pl=0;pl<numviewers;pl++)
-            this.internal.slices[pl].interpolate(input.interpolate);
-        
-        if (dooverlay) {
-            if (input.objectmap!==null) {
-                this.internal.objectmaptransferfunction=input.objectmap;
-                this.internal.objectmaptransferinfo=input.functionalparams;
-                for (pl=0;pl<numviewers;pl++) {
-                    if (this.internal.overlayslices[pl]!==null)
-                        this.internal.overlayslices[pl].setnexttimeforce();
-                }
-            }
-            for (pl=0;pl<numviewers;pl++) {
-                if (this.internal.overlayslices[pl]!==null)
-                    this.internal.overlayslices[pl].interpolate(input.objinterpolate);
-            }
-        }
-
-        //      this.handleresize();
-        
-        this.updateColormapObservers(input);
-        this.drawcolorscale();
+        super.updatetransferfunctions(input);
+        this.updatescene();
     }
 
 
@@ -549,15 +510,21 @@ class MosaicViewerElement extends BaseViewerElement {
         // CMAP
         const self=this;
         //this.internal.cmapcontroller = bisColormapController(this.internal.volume,updatetransferfunctions);
-        var fn=function(i) { self.updatetransferfunctions(i); };
+        var fn=function(i) {
+
+            if (!self.internal.subviewers) {
+                
+                return;
+            }
+            
+            self.updatetransferfunctions(i);
+
+        };
         
         if (this.internal.cmapcontroller===null) {
-            let colormapid=this.getAttribute('bis-colormapeditorid');
-            this.internal.cmapcontroller=document.querySelector(colormapid);
+            this.internal.cmapcontroller=document.createElement('bisweb-colormapcontrollerelement');
+            this.appendChild(this.internal.cmapcontroller);
         }
-        this.internal.cmapcontroller.setimage(this.internal.volume,fn,1.0);
-        
-        
         this.internal.plane=pl;
         
         var imagesize=this.internal.volume.getImageSize();
@@ -590,11 +557,14 @@ class MosaicViewerElement extends BaseViewerElement {
         
         //this.internal.layoutcontroller.setelementdimensions(domparent[0].clientWidth);
         this.drawlabels();
-        
+
+        this.internal.cmapcontroller.setimage(this.internal.volume,fn,1.0);
         this.createdatgui();
         if (this.internal.objectmap!==null) {
             this.setobjectmapplane(this.internal.plane,true);
         }
+
+        
     }
     
     // ------------------------------------------------------------------------

@@ -15,20 +15,20 @@
 # 
 # ENDLICENSE
 
-import math
 import os
 import sys
 import numpy as np
 import unittest
-
 my_path=os.path.dirname(os.path.realpath(__file__));
-sys.path.append(os.path.abspath(my_path+'/../python/modules'));
-import resliceImage;
+sys.path.insert(0,os.path.abspath(my_path+'/../'));
+sys.path.insert(0,os.path.abspath(my_path+'/../biswebpython/modules'));
 
+import biswebpython.modules.resliceImage as resliceImage;
+import biswebpython.core.bis_objects as bis
+import biswebpython.core.bis_baseutils as bis_baseutils;
 
+libbis=bis_baseutils.getDynamicLibraryWrapper();
 
-import biswrapper as libbis;
-import bis_objects as bis
 
 
 class TestResample(unittest.TestCase):
@@ -68,8 +68,11 @@ class TestResample(unittest.TestCase):
             "spacing" : reference_image.spacing,
             "datatype" : "float",
             "backgroundValue" : 0.0,
+            "numthreads" : 4
         };
 
+
+        print(paramobj);
         print('----------------------------------------------------------');
         
         out_obj=libbis.resliceImageWASM(images[1],matr,paramobj,debug=2);
@@ -87,7 +90,7 @@ class TestResample(unittest.TestCase):
         self.assertEqual(testpass,True);
 
 
-    def test_resample_module(self):
+    def otest_resample_module(self):
 
         imgnames = [ 'avg152T1_LR_nifti_resampled.nii.gz',
 	             'avg152T1_LR_nifti.nii.gz',

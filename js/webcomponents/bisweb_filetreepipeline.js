@@ -6,6 +6,7 @@ const moduleIndex = require('moduleindex.js');
 const bisweb_custommodule = require('bisweb_custommodule.js');
 
 const bis_genericio = require('bis_genericio.js');
+const bisweb_serverutils = require('bisweb_serverutils.js');
 const bootbox = require('bootbox');
 const $ = require('jquery');
 
@@ -26,7 +27,6 @@ const layoutTemplate = `
     </div>`;
 
 
-//TODO: When Xenios gets back have him update biswebnode
 class FileTreePipeline extends HTMLElement {
     
     constructor() {
@@ -39,9 +39,12 @@ class FileTreePipeline extends HTMLElement {
     }
 
     connectedCallback() {
-        let algocontrollerid = this.getAttribute('bis-algocontrollerid');
-        bis_webutil.runAfterAllLoaded( () => {     
-            this.algocontroller = document.querySelector(algocontrollerid);
+        const managerid = this.getAttribute('bis-modulemanagerid') || null;
+        bis_webutil.runAfterAllLoaded( () => {
+            let modulemanager = document.querySelector(managerid) || null;
+            if (modulemanager)
+                this.algocontroller = modulemanager.getAlgorithmController();
+            return this.algorithmController;
         });
 
         bisweb_popoverhandler.addPopoverDismissHandler();
@@ -624,9 +627,20 @@ class FileTreePipeline extends HTMLElement {
             let odirFilename = splitOdirFilename.join(sep);
 
             //savemanually flag needed in order to save the output Makefile (modules run directly through the server don't hit the saving hooks from the command line)
-            bis_genericio.runPipelineModule({ 'input' : filename, 'output' :  outputFilename, 'odir' : odirFilename }, true).then( () => {
-                bis_webutil.createAlert('Pipeline Makefile created.');
-            });
+            if (bis_genericio.getenvironment() === 'browser') {
+                bisweb_serverutils.runPipelineModule({ 'input' : filename, 'output' :  outputFilename, 'odir' : odirFilename }, true).then( () => {
+                    bis_webutil.createAlert('Pipeline Makefile created.');
+                });
+            } else if (bis_genericio.getenvironment !== 'browser') { //TODO: test this!
+                //node-only code is kept separate from the more pure web codebase
+                //so in order to run it we have to invoke the command through the command line
+                let command = `biswebnode pipeline --input ${filename} --output ${outputFilename} --odir ${odirFilename}`;
+                let child_process = bis_genericio.getchildprocessmodule();
+                child_process.exec(command);
+            } else {
+                bis_webutil.createAlert('Cannot run pipeline in browser with no fileserver defined. Please select the fileserver option if you want to perform this operation', null, true);
+            }
+            
         });
     }
 
@@ -637,7 +651,9 @@ class FileTreePipeline extends HTMLElement {
      * @returns The set of filenames.
      */
     importInputsFromDisk(f) {
-
+        //some contexts may return a single string split by commas, so we reformat it to avoid multiple parsings
+        if (typeof f === 'string') { f = f.split(','); }
+        
         if (this.pipelineInputs) {
             bootbox.confirm({
                 'size': 'small',

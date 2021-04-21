@@ -16,11 +16,12 @@
  ENDLICENSE */
 
 "use strict";
+const bisconfig = require('bisConfigure.js');
 
 const moduleImports = {
     
     smoothimage : require('smoothImage.js'),
-    qualitymeasures : require('qualityMeasures.js'),
+//    qualitymeasures : require('qualityMeasures.js'),
     gradientimage : require('gradientImage.js'),
     thresholdimage : require('thresholdImage.js'),
     shiftscaleimage : require('shiftScaleImage.js'),
@@ -39,15 +40,16 @@ const moduleImports = {
     cropimage : require('cropImage.js'),
     morphologyfilter : require('morphologyFilter.js'),
     blankimage : require('blankImage.js'),
+    circleblankimage : require('circleBlankImage.js'),
     process4dimage : require('process4DImage.js'),
     slicebiascorrect : require('sliceBiasFieldCorrect.js'),
     segmentimage : require('segmentImage.js'),
     regularizeobjectmap : require('regularizeObjectmap.js'),
     projectimage : require('projectImage.js'),
+    projectaverageimage : require('projectAverageImage.js'),
     preprocessoptical : require('preprocessOptical.js'),
     diffspect : require('diffSpect.js'),
     backprojectimage : require('backProjectImage.js'),
-// FIltering
     butterworthfilter : require('butterworthFilter.js'),
     butterworthfilterimage : require('butterworthFilterImage.js'),
     regressglobal : require('regressGlobal.js'),
@@ -57,34 +59,44 @@ const moduleImports = {
     computecorrelation : require('computeCorrelation.js'),
     seedcorrelation : require('seedCorrelation.js'),
     computeroi : require('computeROI.js'),
-    bilateralfilter : require('bilateralfilter.js'),
-//    functionalconnectivitypreprocessing: require('functionalConnectivityPreprocessing'),
-
+    computevolume : require('computeVolume.js'),
+//    bilateralfilter : require('bilateralfilter.js'),
+    timeseriesnormalizeimage: require('timeseriesNormalizeImage'),
+    patchreformatimage: require('patchReformatImage'),
     computeglm : require('computeGLM.js'),
     approximatefield : require('approximateField.js'),
     displacementfield : require('displacementField.js'),
+    jacobianimage : require('jacobianImage.js'),
     inverttransformation : require('invertTransformation.js'),
     resliceimage : require('resliceImage.js'),
+    projectresliceimage : require('projectResliceImage.js'),
+    projectreslicemask : require('projectResliceMask.js'),
+    permuteimage : require('permuteImage.js'),
     motionreslice : require('motionReslice.js'),
     manualregistration : require('manualRegistration.js'),
     linearregistration : require('linearRegistration.js'),
+    linearpointregistration : require('linearPointRegistration.js'),
     nonlinearregistration : require('nonlinearRegistration.js'),
+    nonlinearpointregistration : require('nonlinearPointRegistration.js'),
     motioncorrection : require('motionCorrection.js'),
-    skullstrip:require('skullStrip.js'),
     defaceimage:require('defaceImage.js'),
     reorientimage:require('reorientImage.js'),
-    tfrecon:require('tfRecon.js'),
     individualizedparcellation : require('individualizedParcellation.js'),
     makeconnmatrixfile : require('makeConnectivityMatrixFile.js'),
-
+    transformelectrodes : require('transformElectrodes.js'),
+    transformsurface : require('transformSurface.js'),
     joinmatrices : require('joinMatrices.js'),
     removematrixcols : require('removeMatrixCols.js'),
 
     // these are here so that can be accessed by electron
     dicomconversion : require('./dicommodule.js'),
-    bidsconversion : require('./bis_bidsmodule.js'),
-
+    bidsconversion : require('./bidsmodule.js'),
 };
+
+// AFNI
+if (bisconfig.usesafni === "ON") {
+    moduleImports['afniblurimage'] = require('afniBlurImage.js');
+}
 
 // --------------------------------------------------------------
 

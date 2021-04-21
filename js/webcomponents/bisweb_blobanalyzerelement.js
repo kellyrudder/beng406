@@ -15,9 +15,6 @@
     
     ENDLICENSE */
 
-/* global setTimeout,HTMLElement */
-
-
 "use strict";
 
 const webutil=require('bis_webutil');
@@ -217,7 +214,8 @@ than zero.</LI> </OL></div>`));
 
         fobj=genericio.getFixedSaveFileName(fobj,"results.csv");
         genericio.write(fobj, this.outputstring).then((f) => {
-            webutil.createAlert('Results saved in '+f);
+            if (genericio.getmode()==='electron')
+                webutil.createAlert('Results saved in '+f);
         }).catch((e) => {
             webutil.createAlert('Failed to save results '+e,true);
         });

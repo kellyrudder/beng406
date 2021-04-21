@@ -29,7 +29,8 @@ const gulp = require('gulp'),
       colors=require('colors/safe'),
       bis_gutil=require('./config/bis_gulputils'),
       rimraf=require('rimraf'),
-      es = require('event-stream');
+      es = require('event-stream'),
+      glob = require('glob');
 
 
 const getTime=bis_gutil.getTime;
@@ -49,7 +50,6 @@ program
     .option('-w, --worker','if present build the webworker as well')
     .option('-s, --sworker','if present build the service worker and index.js as well')
     .option('--nomain','if present do not build the main bislib.js bundle')
-    .option('--tf','if true package tensorfow in electron app')
     .option('--localhost','only local access')
     .option('--portno <s>','port for server (8080 is default)')
     .option('--internal <n>','if 1 use internal code, if 2 serve the internal directory as well',parseInt)
@@ -78,7 +78,6 @@ let options = {
     external : program.external || 0 ,
     portno : parseInt(program.portno) || 8080,
     hostname : '0.0.0.0',
-    tensorflow : program.tf || false,
 };
 
 
@@ -95,14 +94,6 @@ if (program.internal === undefined)
 
 if (program.eslint === undefined)
     options.eslint=1;
-
-
-
-
-
-if (options.tensorflow) {
-    options.dopack=2;
-}
 
 
 const mainoption=program.rawArgs[2];
@@ -159,19 +150,18 @@ let internal = {
         "./node_modules/bootstrap-slider/dist/css/bootstrap-slider.min.css",
         "./web/biscommon.css"
     ], // Bright mode
-    lintscripts : ['js/**/*.js','config/*.js','compiletools/*.js','*.js','web/**/*.js','test/**/*.js','fileserver/*.js'],
+    lintscripts : ['js/**/*.js','config/*.js','compiletools/*.js','*.js','web/*.js','test/**/*.js'],
     toolarray : [ 'index'],
     serveroptions : { },
     setwebpackwatch : 0,
 };
-
 
 // Define server options
 internal.serveroptions = {
     "root" : path.normalize(__dirname),
     "host" : options.hostname,
     "port" : `${options.portno}`,
-    'directoryListing': true,
+    'directoryListing': false,
 };
 
 if (options.external>0) {
@@ -196,6 +186,20 @@ if (options.external) {
 }
 
 
+const oldlst=internal.lintscripts;
+internal.lintscripts=[];
+
+oldlst.forEach( (nm) => {
+    const nmlist=glob.sync(nm);
+    nmlist.forEach( (fname) => {
+        if (fname.indexOf(".#")<0) {
+            internal.lintscripts.push(fname);
+            console.log(fname);
+        }
+    });
+});
+        
+
 // ---------------------------
 // Get Tool List
 // ---------------------------
@@ -218,8 +222,14 @@ console.log(getTime()+colors.cyan(' Config versiontag='+bis_gutil.getVersionTag(
 if (options.inpfilename === "" || options.inpfilename === "all") {
     let obj=internal.setup.tools;
     let keys=Object.keys(obj);
-    options.inpfilename ='index,'+keys.join(",");
-} 
+    let names=['index'];
+    for (let i=0;i<keys.length;i++) {
+        let donotbuild=obj[keys[i]]['donotbuild'] || false;
+        if (!donotbuild)
+            names.push(keys[i]);
+    }
+    options.inpfilename=names.join(",");
+}
 
 // ------------------------
 // Define webpack jobs
@@ -304,15 +314,21 @@ gulp.task('eslint',  () => {
             },
             "rules": {
                 'no-console': 'off',
+                'no-prototype-builtins': 'off',
                 'indent' : 'off',
+                'require-atomic-updates' : 'off',
                 "semi": [
                     "error",
                     "always"
                 ]
-            }
+            },
+            'globals' : [
+                'BigInt64Array' ,
+                'BigUint64Array' 
+            ]
+                
         })).pipe(eslint.format());
 });
-
 
 gulp.task('watch', () => { 
     return gulp.watch(internal.lintscripts, gulp.series('eslint'));
@@ -409,6 +425,7 @@ gulp.task('commonfiles', (done) => {
         gulp.src('./lib/js/webcomponents-lite.js').pipe(gulp.dest(options.outdir)),
         gulp.src('./node_modules/jquery/dist/jquery.min.js').pipe(gulp.dest(options.outdir)),
         gulp.src('./node_modules/three/build/three.min.js').pipe(gulp.dest(options.outdir)),
+        gulp.src('./node_modules/d3/d3.min.js').pipe(gulp.dest(options.outdir)),
         gulp.src('./node_modules/bootstrap/dist/js/bootstrap.min.js').pipe(gulp.dest(options.outdir)),
         gulp.src('./web/aws/biswebaws.html').pipe(gulp.dest(options.outdir)),
         gulp.src('./web/aws/awsparameters.js').pipe(gulp.dest(options.outdir)),
@@ -420,19 +437,11 @@ gulp.task('commonfiles', (done) => {
 
 gulp.task('commonfileselectron', (done) => { 
 
-    const rename = require('gulp-rename');
-
-    let name='package_notf';
-
-    if (options.tensorflow)
-        name='package';
-    
-    console.log(getTime()+' Copying extra common files for electron. tensorflow=',options.tensorflow);
-
+    console.log(getTime()+' Copying extra common files for electron.');
     es.concat(
         gulp.src('./web/bispreload.js').pipe(gulp.dest(options.outdir)),
         gulp.src('./web/biselectron.js').pipe(gulp.dest(options.outdir)),
-        gulp.src('./web/'+name+'.json').pipe(rename({'basename' : 'package'})).pipe(gulp.dest(options.outdir)),
+        gulp.src('./web/package.json').pipe(gulp.dest(options.outdir)),
     ).on('end', () => {
         done();
     });
@@ -452,6 +461,7 @@ gulp.task('tools', ( (cb) => {
     promises.push(bis_gutil.createCSSCommon(internal.dependcss2,internal.biscss2,options.outdir));
     
     for (let index=0;index<internal.toolarray.length;index++) {
+        
         let toolname=internal.toolarray[index];
         let gpl=true;
         let maincss=internal.biscss;
@@ -567,7 +577,6 @@ gulp.task('serve',
               'setwebpackwatch',
               'webserver',
               gulp.parallel(
-                  'watch',
                   'webpack')
           ));
 

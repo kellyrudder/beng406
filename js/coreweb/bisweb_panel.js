@@ -15,7 +15,6 @@
  
  ENDLICENSE */
 
-/* global  HTMLElement */
 "use strict";
 
 const $=require('jquery');
@@ -110,6 +109,7 @@ class BisWebPanel {
         this.sidebarMinimizeButton=null;
         this.sidebarMaximizeButton=null;
         this.sidebarCloseButton=null;
+        this.sidebarHelpButton=null;
         this.dummyWidget=$('<div></div>');
         this.createHeader();
     }
@@ -124,6 +124,29 @@ class BisWebPanel {
      */
     getFooter() { return this.footer; }
 
+    /** returns the state of the widget (empty, sidebar, docked) */
+    getVisibilityState() {
+        return this.state;
+    }
+
+    /** set the visibility state */
+    setVisibilityState(st) {
+
+        if (st===this.state)
+            return;
+
+        if (st!=='docked' && st!=='sidebar') {
+            this.hide();
+            return;
+        }
+        
+        if (st==='docked') {
+            this.addToDock();
+        } else {
+            this.addToSidebar();
+        }
+        this.addDisplayHelpCallback();
+    }
 
     /** Shows the dialog and disables any drag and drop elements while it is open */
     show() {
@@ -137,9 +160,11 @@ class BisWebPanel {
         } else {
             if (this.state!=="sidebar")
                 this.addToDock();
-            else
+            else 
                 this.addToSidebar();
         }
+        this.addDisplayHelpCallback();
+
     }
     /** Hides the dialog and renables any drag and drop elements present */
     hide() {
@@ -190,6 +215,8 @@ class BisWebPanel {
 
         const self=this;
 
+        
+        
         if (this.options.initialstate==="sidebar" || this.options.dual) {
             this.sidebarCloseButton=$(`<button type="button" class="bistoggle"><span class="glyphicon glyphicon-remove-circle"></span></button>`);
             this.sidebarCloseButton.click( (e) => {
@@ -208,34 +235,25 @@ class BisWebPanel {
             });
         }
 
-
+        
         if (this.options.initialstate === "docked" && this.options.dual===false) {
-
+            
             if (this.options.helpButton) {
-                this.dockHelpButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-info-sign"></span></button>`);
-                this.dockHelpButton.click( (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    self.displayHelpModal();
-                });
+                this.dockHelpButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-info-sign bisweb-span-button"></span></button>`);
             }
-            return;
         }
 
-        
-        this.dockToggleButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-log-out"></span></button>`);
-        
-        this.dockToggleButton.click( (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            self.remove();
-            self.addToSidebar();
-            self.drawInSidebarWithWidth(this.options.width+15);
-            return false;
-        });
-
-        
         if (this.options.dual) {
+            this.dockToggleButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-log-out"></span></button>`);
+            this.dockToggleButton.click( (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                self.remove();
+                self.addToSidebar();
+                self.drawInSidebarWithWidth(this.options.width+15);
+                return false;
+            });
+            
             this.sidebarToggleButton=$(`<button type="button" class="bistoggle"><span class="glyphicon glyphicon-log-out"></span></button>`);
             this.sidebarToggleButton.click( (e) => {
                 e.preventDefault();
@@ -292,14 +310,8 @@ class BisWebPanel {
         buttonbar.append(this.sidebarCloseButton);
 
         if (this.options.helpButton) {
-            this.helpButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-info-sign"></span></button>`);
-            
-            this.helpButton.click( (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                self.displayHelpModal();
-            });
-            buttonbar.append(this.helpButton);
+            this.sidebarHelpButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-info-sign bisweb-span-button"></span></button>`);
+            buttonbar.append(this.sidebarHelpButton);
         }
         buttonbar.append(this.sidebarMinimizeButton);
         if (this.options.dual) {
@@ -308,12 +320,7 @@ class BisWebPanel {
 
         
         if (this.options.helpButton) {
-            this.dockHelpButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-info-sign"></span></button>`);
-            this.dockHelpButton.click( (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                self.displayHelpModal();
-            });
+            this.dockHelpButton=$(`<button type="button" class="bistoggle bisflip"><span class="glyphicon glyphicon-info-sign bisweb-span-button"></span></button>`);
         }
 
         this.minimalHeader.append(this.sidebarMaximizeButton);
@@ -374,7 +381,8 @@ class BisWebPanel {
             globalDockedPanels.push(this);
         else
             permanentPanels.push(this);
-        
+
+        this.addDisplayHelpCallback();
         webutil.activateCollapseElement(this.dockWidget);
         return true;
     }
@@ -458,14 +466,37 @@ class BisWebPanel {
         if (index>=0)
             globalDockedPanels.splice(index,1);
 
+        this.addDisplayHelpCallback();
+        
         this.state="empty";
         return true;
     }
 
+
+    /** add display help callback */
+    addDisplayHelpCallback() {
+
+        const add=(bt) => {
+            bt.off('click');
+            bt.on('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.displayHelpModal();
+            });
+        };
+
+        if (this.dockHelpButton)
+            add(this.dockHelpButton);
+        
+        if (this.sidebarHelpButton)
+            add(this.sidebarHelpButton);
+    }
     /** Display a modal containing information specific to whichever panel this is meant to represent. This should be assigned by whichever context creates the bisweb_panel. */
     displayHelpModal() {
         bootbox.alert(this.helpModalMessage);
     }
+
+    
 
     /** Sets the help modal for this context. */
     setHelpModalMessage(message) {
@@ -480,7 +511,60 @@ class BisWebPanel {
         return globalDockedPanels.concat(permanentPanels);
     }
 
+    // -------------------------------------------------------------
+    /** Element State stuff */
     
+    getElementState() {
+        
+        return {
+            'visibilityState' : this.getVisibilityState(),
+            'isOpen' : this.isOpen(),
+        };
+    }
+
+    setElementState(dt=null) {
+        if (!dt)
+            return;
+        
+        this.setVisibilityState(dt['visibilityState']);
+    }
+   
 }
+
+
+
+
+/**
+ * Creates a custom module and adds it to the frame as a child of parent. 
+ * Custom Module Class. 
+ * @alias bisWebCustomModule.createCustom
+ * @param {Node} parent - DOM Node to append the custom module frame to
+ * @param {bisweb_algorithm} algorithmcontroller-  Algorithm controller associated with the viewers on the page
+ * @param {Object} mod - Object containing a module that specifies how it should be displayed and run.
+ * @param {object} opts - the options object 
+ * @param {Boolean} opts.numViewers - Number of Image Viewers attached
+ */
+/*
+let createCustom = function (parent, algorithmcontroller, mod, opts = {}) {
+    return new CustomModule(parent, mod, algorithmcontroller, opts);
+};*/
+
+/** Update open Modules */
+/*
+let updateModules = function() {
+
+    let panels=BisWebPanel.getActivePanels();
+    for (let i=0;i<panels.length;i++) {
+        if (panels[i]) {
+            let mod=ModuleList[panels[i].options.name];
+            if (mod) {
+                mod.createOrUpdateGUI();
+            }
+        }
+    }
+
+    
+    
+}*/
 
 module.exports=BisWebPanel;

@@ -15,8 +15,6 @@
     
     ENDLICENSE */
 
-/* global  HTMLElement, window,document */
-
 "use strict";
 
 const bis_webfileutil=require('bis_webfileutil');
@@ -361,7 +359,11 @@ class DisplayRegressionElement extends HTMLElement {
             globalParams.goldImageElement=document.querySelector('#imggold');
             globalParams.comparisonTextElement=$('#comparison');
             initialize(displaytestlist);
+            
+            if (!isconnviewer)
+                globalParams.application.getViewer(0).setimage(globalImage);
 
+            
             $('#compute').click( (e) => {
                 e.preventDefault(); // cancel default behavior
                 runTests(true,isconnviewer);

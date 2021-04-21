@@ -15,9 +15,6 @@
     
     ENDLICENSE */
 
-/* global setTimeout,HTMLElement */
-
-
 "use strict";
 
 const THREE = require('three');
@@ -69,7 +66,6 @@ class LandmarkControlElement extends HTMLElement {
         this.internal = {
             
             // global stuff
-            initialized : false,
             this : null,
             subviewers : null,
             volume : null,
@@ -128,12 +124,11 @@ class LandmarkControlElement extends HTMLElement {
 
         if (this.internal.subviewers===null || this.internal.mesh===null)
             return;
-        
-        var i=0;
-        for (var st=0;st<this.internal.landmarkset.length;st++) {
+
+        for (let st=0;st<this.internal.landmarkset.length;st++) {
             if ( (currentonly===false || st === this.internal.currentsetindex) &&
                  (this.internal.mesh[st]!==null)) {
-                for ( i=0;i<this.internal.subviewers.length;i++)  {
+                for (let i=0;i<this.internal.subviewers.length;i++)  {
                     if (this.internal.subviewers[i]!==null && this.internal.mesh[st][i]!==null) {
                         this.internal.mesh[st][i].visible=false;
                         this.internal.subviewers[i].getScene().remove(this.internal.mesh[st][i]);
@@ -145,7 +140,7 @@ class LandmarkControlElement extends HTMLElement {
         }
         
         if (docursor) {
-            for (i=0;i<this.internal.subviewers.length;i++)  {
+            for (let i=0;i<this.internal.subviewers.length;i++)  {
                 if (this.internal.cursormesh[i]!==null) {
                     if (this.internal.subviewers[i]!==null) {
                         let scene=this.internal.subviewers[i].getScene();
@@ -197,7 +192,11 @@ class LandmarkControlElement extends HTMLElement {
         var core=bisCrossHair.createcore(wd,thk,true,wd*0.2);
         var cursorgeom=new THREE.BufferGeometry();
         cursorgeom.setIndex(new THREE.BufferAttribute( core.indices, 1 ) );
-        cursorgeom.addAttribute( 'position', new THREE.BufferAttribute( core.vertices, 3 ) );
+        if (THREE['REVISION']<101) {
+            cursorgeom.addAttribute( 'position', new THREE.BufferAttribute( core.vertices, 3 ) );
+        } else {
+            cursorgeom.setAttribute( 'position', new THREE.BufferAttribute( core.vertices, 3 ) );
+        }
 
         this.internal.cursormesh=new Array(this.internal.subviewers.length);
         //          var gmat=new THREE.MeshBasicMaterial( {color: "#ffffff", wireframe:true});
@@ -209,9 +208,11 @@ class LandmarkControlElement extends HTMLElement {
         } );
 
         for (var i=0;i<this.internal.subviewers.length;i++) {
-            this.internal.cursormesh[i]=new THREE.Mesh(cursorgeom, gmat);
-            this.internal.cursormesh[i].visible=false;
-            this.internal.subviewers[i].getScene().add(this.internal.cursormesh[i]);
+            if (this.internal.subviewers[i]!==null) {
+                this.internal.cursormesh[i]=new THREE.Mesh(cursorgeom, gmat);
+                this.internal.cursormesh[i].visible=false;
+                this.internal.subviewers[i].getScene().add(this.internal.cursormesh[i]);
+            }
         }
     }
 
@@ -833,9 +834,10 @@ class LandmarkControlElement extends HTMLElement {
             self.updatedisplay();
         });
         
-        f2.addColor(self.internal.data, 'color').name("Landmark Color").onChange(function() {  
+        let w1=f2.addColor(self.internal.data, 'color').name("Landmark Color").onChange(function() {  
             self.updatecolors();
         });
+        $(w1.domElement.children).css( { 'height' : '16px' });
 
         webutil.removedatclose(f2);
         self.internal.folders=[f1, f2];
@@ -1000,7 +1002,7 @@ class LandmarkControlElement extends HTMLElement {
             if (this.internal.landmarkset===null) {
                 this.internal.landmarkset=new Array(MAXSETS);
                 for (let i=0;i<MAXSETS;i++) {
-                    var cl=util.objectmapcolormap[i+1];
+                    var cl=util.getobjectmapcolor(i+1);
                     this.internal.landmarkset[i]=new LandmarkSet(20);
                     this.internal.landmarkset[i].filename="PointSet"+(i+1)+".ljson";
                     this.internal.landmarkset[i].color=util.rgbToHex(cl[0],cl[1],cl[2]);
@@ -1075,19 +1077,19 @@ class LandmarkControlElement extends HTMLElement {
      */
     getElementState() {
 
+        if (!this.internal.parentDomElement)
+            return {};
         
-        let obj = { };
+        const obj = { };
         obj.data = this.internal.data;
         obj.currentpoint= this.internal.currentpoint;
         obj.currentset=this.internal.currentsetindex;
-        console.log(JSON.stringify(obj,null,1), this.internal.currentsetindex);
         let sets=[];
         for (let i=0;i<this.internal.landmarkset.length;i++) {
             sets.push(this.internal.landmarkset[i].serialize());
         }
         obj.sets=sets;
         obj.isopen=this.panel.isOpen();
-        
         return obj;
     }
 

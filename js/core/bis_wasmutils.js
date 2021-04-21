@@ -48,8 +48,15 @@ const niftitypes= {
     64 :  [ 'double',Float64Array, 8],
     256 : [ 'schar',Int8Array ,1 ],
     512 : [ 'ushort',Uint16Array,2 ],
-    768 : [ 'uint',Uint32Array,4]
+    768 : [ 'uint',Uint32Array,4],
 };
+
+try {
+    niftitypes['1024']= [ 'int64',BigInt64Array,8];
+    niftitypes['1280']= [ 'uint64',BigUint64Array,8];
+} catch (e) {
+    console.log('___ In older JS engine. No BigInt support.');
+}
 
 /**
  * Name2Type mapps
@@ -64,10 +71,12 @@ const name2type= {
     "Float64Array" : 64,
     "Int8Array" : 256,
     "Uint16Array" : 512,
-    "Uint32Array" : 768
+    "Uint32Array" : 768,
+    "BigInt64Array"  : 1024,
+    "BigUint64Array"  : 1280,
 };
 
-/** calls web assembly code to allocate memory to a pointer
+/** gets the code 2,4,6,8 etc from the js data dtype
  * @alias bisWasmUtils.getCodeFromType
  * @param {TypedArray} arr - the array whose type we need
  * @returns {number}  --  the nifti type for the array (e.g. Float32Array -> 16)
@@ -75,6 +84,41 @@ const name2type= {
 var getCodeFromType=function(arr) {
     return name2type[arr.constructor.name];
 };
+
+
+/** gets the shortname e.g. float, int etc from the js data dtype
+ * @alias bisWasmUtils.getNameFromType
+ * @param {TypedArray} arr - the array whose type we need
+ * @returns {String}  --  the short name for the array (e.g. Float32Array -> 'float')
+ */
+var getNameFromType=function(arr) {
+    let code=getCodeFromType(arr);
+    let elem=niftitypes[code];
+    return elem[0];
+};
+
+/** gets the type e.g. Float32Array from the short name e.g. float
+ * @alias bisWasmUtils.getNameFromType
+ * @param {String} name - the name whose type we need
+ * @returns {Type}  --  the constructor name (e.g. 'float' ->'Float32Array')
+ */
+var getTypeFromName=function(name) {
+
+    let tp=Float32Array;
+    let i=0,found=false;
+    let keys=Object.keys(niftitypes);
+    while (i< keys.length && found===false) {
+        let elem=niftitypes[keys[i]];
+        if (name===elem[0]) {
+            tp=elem[1];
+            found=true;
+        }
+        i=i+1;
+    }
+
+    return tp;
+};
+
 
 /** calls web assembly code to allocate memory to a pointer
  * @alias bisWasmUtils.allocate_memory
@@ -167,6 +211,13 @@ var get_combo_magic_code=function(Module) { return Module._getComboTransformMagi
  * @returns {number} the Bis WebAssembly Magic Code for a collection
  */
 var get_collection_magic_code=function(Module) { return Module._getCollectionMagicCode(); };
+
+/**
+ * @alias bisWasmUtils.get_surface_magic_code
+ * @param {EmscriptenModule} Module - the emscripten Module object
+ * @returns {number} the Bis WebAssembly Magic Code for a collection
+ */
+var get_surface_magic_code=function(Module) { return Module._getSurfaceMagicCode(); };
 
 
 // ------------------------------------------------------------
@@ -277,17 +328,16 @@ var packRawStructure = function(Module,
     return dataPtr;
 };
 
-
-/** packs a vector, an image or a matrix to bis-WASM serialized format
- * @alias bisWasmUtils.packStructure
+/** utility function to pack a vector, an image or a matrix to bis-WASM serialized format
+ * @alias bisWasmUtils.getpackStructurePieces
  * @param {EmscriptenModule} Module - the emscripten Module object
  * @param {TypedArray} data_array - the raw data to pack (i.e intensities)
  * @param {array} - dimensions, an array up to size 5. 1=vector,2=matrix=5=image. 
  * @param {spacing} - spacing, an array up to size 5. 
- * @returns {TypedArray}  -- biswasm serialized array
+ * @returns {obj}  -- { header_array : hd , data_array: dt,magic_type : mt }
  */
-var packStructure = function(Module,data_array,
-                             dimensions=[],spacing=[]) {
+
+var getPackStructurePieces = function(Module,data_array,dimensions=[],spacing=[]) {
 
     let vect_magic_code=get_vector_magic_code(Module);
     let matr_magic_code=get_matrix_magic_code(Module);
@@ -328,7 +378,44 @@ var packStructure = function(Module,data_array,
         }
     }
 
-    return packRawStructure(Module,header_array,data_array,magic_type);
+    return {
+        'header_array': header_array,
+        'data_array' : data_array,
+        'magic_type' : magic_type
+    };
+};
+
+/** packs a vector, an image or a matrix to bis-WASM serialized format
+ * @alias bisWasmUtils.packStructure
+ * @param {EmscriptenModule} Module - the emscripten Module object
+ * @param {TypedArray} data_array - the raw data to pack (i.e intensities)
+ * @param {array} - dimensions, an array up to size 5. 1=vector,2=matrix=5=image. 
+ * @param {spacing} - spacing, an array up to size 5. 
+ * @returns {TypedArray}  -- biswasm serialized array
+ */
+var packStructure = function(Module,data_array,
+                             dimensions=[],spacing=[]) {
+
+    let dat=getPackStructurePieces(Module,data_array,dimensions,spacing);
+    return packRawStructure(Module,dat['header_array'],dat['data_array'],dat['magic_type']);
+};
+
+/** packs a vector, an image or a matrix to bis-WASM serialized format
+ * @alias bisWasmUtils.packStructureInPlace
+ * @param {EmscriptenModule} Module - the emscripten Module object
+ * @param {Pointer} dataPtr - place result here
+ * @param {TypedArray} data_array - the raw data to pack (i.e intensities)
+ * @param {array} - dimensions, an array up to size 5. 1=vector,2=matrix=5=image. 
+ * @param {spacing} - spacing, an array up to size 5. 
+ * @returns {TypedArray}  -- biswasm serialized array
+ */
+var packStructureInPlace = function(Module,dataPtr,data_array,dimensions=[],spacing=[]) {
+
+    let dat=getPackStructurePieces(Module,data_array,dimensions,spacing);
+    let headersize=dat['header_array'].byteLength;
+    let nDataBytes = dat['data_array'].byteLength + headersize+16;
+    packRawStructureInPlace(Module,dataPtr,dat['header_array'],dat['data_array'],dat['magic_type']);
+    return nDataBytes;
 };
 // ---------------------------------------------------------------------------------------------------
 
@@ -497,6 +584,8 @@ var unpackMatrixAndDelete=function(Module,wasmarr) {
 
 
 let outputobject = {
+    getNameFromType : getNameFromType,
+    getTypeFromName : getTypeFromName,
     allocate_memory : allocate_memory,
     release_memory : release_memory,
     release_memory_cpp : release_memory,
@@ -508,8 +597,10 @@ let outputobject = {
     get_grid_magic_code :       get_grid_magic_code ,
     get_combo_magic_code :      get_combo_magic_code ,
     get_collection_magic_code : get_collection_magic_code,
+    get_surface_magic_code :      get_surface_magic_code ,
     createPointer: createPointer,
     packStructure : packStructure,
+    packStructureInPlace : packStructureInPlace,
     packRawStructureInPlace : packRawStructureInPlace,
     packRawStructure : packRawStructure,
     unpackStructure: unpackStructure,

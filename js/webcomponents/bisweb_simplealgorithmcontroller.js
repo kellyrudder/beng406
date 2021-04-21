@@ -15,7 +15,6 @@
  
  ENDLICENSE */
 
-/* global document,HTMLElement */
 
 /**
  * @file A Broswer module. Contains an element which manages the interaction between algorithm modules and the main viewer/main application
@@ -64,18 +63,15 @@ class SimpleAlgorithmControllerElement extends HTMLElement {
 
     connectedCallback() {
 
-        const self=this;
-        
-        webutil.runAfterAllLoaded( () => { 
-            
-            self.attachViewers();
+        this.currentMatrixController= document.querySelector(this.getAttribute('bis-matrixelementid')) || null;
+        this.currentTransformController = document.querySelector(this.getAttribute('bis-transformelementid')) || null;
+        if (this.currentTransformController===null) {
+            const self=this;
+            document.addEventListener('loadTransform', self.handleLoadTransformEvent.bind(self));
+        }
 
-            self.currentMatrixController= document.querySelector(this.getAttribute('bis-matrixelementid')) || null;
-            self.currentTransformController = document.querySelector(this.getAttribute('bis-transformelementid')) || null;
-            
-            if (self.currentTransformController===null) {
-                document.addEventListener('loadTransform', self.handleLoadTransformEvent.bind(self));
-            }
+        webutil.runAfterAllLoaded( () => {
+            this.attachViewers();
         });
     }
 
@@ -83,17 +79,20 @@ class SimpleAlgorithmControllerElement extends HTMLElement {
     
     /** Find viewers and store them in this.viewers */
     attachViewers() {
+
         const viewerid = this.getAttribute('bis-viewerid');
         this.viewers['viewer1']= document.querySelector(viewerid) || null;
         if (this.viewers['viewer1'])
             this.viewers['viewer1'].setName('viewer1');
 
-        const viewerid2 = this.getAttribute('bis-viewerid2');
-        this.viewers['viewer2']=document.querySelector(viewerid2) || null;
-        if (this.viewers['viewer2'])
-            this.viewers['viewer2'].setName('viewer2');
-
+        const viewerid2 = this.getAttribute('bis-viewerid2') || '';
+        if (viewerid2!=='') {
+            this.viewers['viewer2']=document.querySelector(viewerid2) || null;
+            if (this.viewers['viewer2'])
+                this.viewers['viewer2'].setName('viewer2');
+        }
     }
+        
 
 
     /** Get the Current Image
@@ -113,7 +112,7 @@ class SimpleAlgorithmControllerElement extends HTMLElement {
                 return this.viewers[viewer].getobjectmap();
             return this.viewers[viewer].getimage();
         }
-        
+
         console.log('Error: attempting to get an image from nonexistent viewer',viewer,' with key', itype);
         return null;
     }

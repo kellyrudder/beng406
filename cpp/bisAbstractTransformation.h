@@ -91,11 +91,11 @@ public:
    * @returns 1 if success, 0 if failure
    */
 
- virtual std::unique_ptr<bisSimpleImage <float> > computeDisplacementField(int dim[3],float spa[3]);
+  virtual bisSimpleImage <float>* computeDisplacementField(int dim[3],float spa[3]);
 
 
   /** Gets the raw size in bytes for this structure */
-  virtual int getRawSize()=0;
+  virtual long getRawSize()=0;
 
   /** Get Magic Type for this transformation -> used in serialization */
   virtual int getMagicType() { return this->magic_type; }

@@ -50,6 +50,7 @@
     <script src="../build/web/webcomponents-lite.js"></script>
     <script src="../build/web/jquery.min.js"></script>
     <script src="../build/web/three.min.js"></script>
+    <script src="../build/web/d3.min.js"></script>
     <script src="../build/web/bootstrap.min.js"></script>
     <script src="../build/web/libbiswasm_wasm.js"></script>
     <script src="../build/web/bislib.js"></script>
@@ -75,14 +76,10 @@
         bis-defaulttext=" Loading">
       </bisweb-viewerlayoutelement>
 
-      <bisweb-colormapcontrollerelement id="viewer_cmap">
-      </bisweb-colormapcontrollerelement>
-      
       <bisweb-orthogonalviewer
         id="viewer"
         bis-simplemode="true"
-        bis-layoutwidgetid="#viewer_layout"
-        bis-colormapeditorid="#viewer_cmap">
+        bis-layoutwidgetid="#viewer_layout">
       </bisweb-orthogonalviewer>
       
       <bisweb-snapshotelement

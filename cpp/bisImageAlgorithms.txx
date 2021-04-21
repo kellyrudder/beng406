@@ -58,7 +58,7 @@ namespace bisImageAlgorithms {
     float spa2[5]; image2->getSpacing(spa2);
 
     double sumf=0.0;
-    for (int i=0;i<=max;i++) 
+    for (int i=0;i<max;i++) 
       sumf+=fabs(spa1[i]-spa2[i]);
     if (sumf>0.01) 
       {
@@ -249,10 +249,23 @@ namespace bisImageAlgorithms {
                                              bisSimpleImage<T>* output,float sigmas[3], float outsigmas[3],int inmm,float radiusfactor,int vtkboundary)
   {
 
-
-    
     int dim[5];    input->getDimensions(dim);
     float spa[5];    input->getSpacing(spa);
+
+    if (sigmas[0]<0.000000001 &&
+        sigmas[1]<0.000000001 &&
+        sigmas[2]<0.000000001 ) {
+      std::cout << "Just copying, no smoothing ... " << sigmas[0] << "," << sigmas[1] << "," << sigmas[2] << std::endl;
+      output->copyStructure(input);
+      T* inp=input->getData();
+      T* out=output->getData();
+      int l=dim[0]*dim[1]*dim[2]*dim[3]*dim[3];
+      for (int i=0;i<l;i++)
+        out[i]=inp[i];
+      return;
+    }
+        
+        
 
     std::unique_ptr<bisSimpleImage<T> > temp(new bisSimpleImage<T>("temporary_smooth_image"));
     temp->copyStructure(input);
@@ -263,32 +276,32 @@ namespace bisImageAlgorithms {
 
     for(int ia=0;ia<=2;ia++)
       {
-	if (inmm) 
-	  outsigmas[ia]=sigmas[ia]/spa[ia];
-	else
-	  outsigmas[ia]=sigmas[ia];
+        if (inmm) 
+          outsigmas[ia]=sigmas[ia]/spa[ia];
+        else
+          outsigmas[ia]=sigmas[ia];
       }
-
+    
     int radii[3] = { 1,1,1 };
     for (int i=0;i<=2;i++) {
       radii[i]=int(outsigmas[i]*radiusfactor);
       if (radii[i]<1)
-	radii[i]=1;
+        radii[i]=1;
     }
-
+    
     std::vector<float> kernelx=internal::generateSmoothingKernel(outsigmas[0],radii[0]);
     std::vector<float> kernely=internal::generateSmoothingKernel(outsigmas[1],radii[1]);
 
     oneDConvolution(input_data,temp_data,dim,kernelx,0,vtkboundary);
     oneDConvolution(temp_data,output_data,dim,kernely,1,vtkboundary);
-
+    
     if (dim[2]>1)
       {
-	std::vector<float> kernelz=internal::generateSmoothingKernel(outsigmas[2],radii[2]);
-	int len=input->getLength();
-	for(int j=0;j<len;j++)
-	  temp_data[j]=output_data[j];
-	oneDConvolution(temp_data,output_data,dim,kernelz,2,vtkboundary);
+        std::vector<float> kernelz=internal::generateSmoothingKernel(outsigmas[2],radii[2]);
+        int len=input->getLength();
+        for(int j=0;j<len;j++)
+          temp_data[j]=output_data[j];
+        oneDConvolution(temp_data,output_data,dim,kernelz,2,vtkboundary);
       }
 
   }
@@ -523,14 +536,14 @@ namespace bisImageAlgorithms {
   }
 
   
-  template<class T> std::unique_ptr<bisSimpleImage<short> > imageNormalize(bisSimpleImage<T>* input,float perlow,float perhigh,short outmaxvalue,double outdata[2],std::string name)
+  template<class T> bisSimpleImage<short>* imageNormalize(bisSimpleImage<T>* input,float perlow,float perhigh,short outmaxvalue,double outdata[2],std::string name)
   {
     int dim[5];   input->getDimensions(dim);
     float spa[5]; input->getSpacing(spa);
-    std::unique_ptr< bisSimpleImage<short> > output(new bisSimpleImage<short>(name));
+    bisSimpleImage<short>* output=new bisSimpleImage<short>(name);
     output->allocate(dim,spa);
-    imageNormalize(input,output.get(),perlow,perhigh,outmaxvalue,outdata);
-    return std::move(output);
+    imageNormalize(input,output,perlow,perhigh,outmaxvalue,outdata);
+    return output;
   }
 
 
@@ -1235,7 +1248,7 @@ namespace bisImageAlgorithms {
       return 0;
   
     double r[2]; roi->getRange(r);
-    if (r[1]>999 || r[0]<-3)
+    if (r[1]>9999 || r[0]<-3)
       {
 	std::cerr << "Bad ROI Image. It has largest value > 999 (max=" << r[1] << ") or min value <-3 ( min="<< r[0] << ")" << std::endl;
 	return 0;
@@ -1305,12 +1318,12 @@ namespace bisImageAlgorithms {
   }
 
 
-  template<class TT> std::unique_ptr<bisSimpleImage<unsigned char> >  createMaskImage(bisSimpleImage<TT>* input,float threshold,int absolute,int outputis100)
+  template<class TT> bisSimpleImage<unsigned char>* createMaskImage(bisSimpleImage<TT>* input,float threshold,int absolute,int outputis100)
   {
     int dim[5]; input->getDimensions(dim);
     float spa[5]; input->getSpacing(spa);
     
-    std::unique_ptr<bisSimpleImage<unsigned char> >output(new bisSimpleImage<unsigned char>("mask"));
+    bisSimpleImage<unsigned char>*output=new bisSimpleImage<unsigned char>("mask");
     output->allocate(dim,spa);
 
 
@@ -1335,7 +1348,7 @@ namespace bisImageAlgorithms {
 	else
 	  odata[i]=0;
       }
-    return std::move(output);
+    return output;
   }
 
   template<class IT,class OT> std::unique_ptr<bisSimpleImage<OT> >  thresholdImage(bisSimpleImage<IT>* input,float thresholds[2],int replace[2],OT replacevalue[2])
@@ -1644,13 +1657,11 @@ namespace bisImageAlgorithms {
 					 clusterImage.get(),clusters,frame,component);
 
 
-    std::cout << "Clusters size=" << clusters.size() << std::endl;
+    if (clustersizethreshold<0)
+      clustersizethreshold=maxsize;
+    
+    std::cout << "___ Filtering: Number of Clusters=" << clusters.size() << " maxsize=" << maxsize << " clustersizethreshold=" << clustersizethreshold << std::endl;
 
-    int dimc[5]; clusterImage->getDimensions(dimc);
-    int maxv=dimc[0]*dimc[1]*dimc[2]*dimc[3]*dimc[4];
-    
-    std::cout << "Returned " << maxsize << std::endl;
-    
     int dim[5]; output->getDimensions(dim);
     int volsize=dim[0]*dim[1]*dim[2];
     int numcomp=dim[3]*dim[4];
@@ -1660,8 +1671,6 @@ namespace bisImageAlgorithms {
     T* idata=input->getImageData();
     int numpass=0;
 
-    std::cout << "Volsize " << volsize << " maxv=" << maxv << std::endl;
-    
     for (int i=0;i<volsize;i++)
       {
 	int clusterno=clustdata[i];
@@ -1676,7 +1685,6 @@ namespace bisImageAlgorithms {
       }
 
     std::cout << "+ +  cluster size masking biggest_cluster=" << maxsize << " threshold=" << clustersizethreshold << " numpass=" << numpass << std::endl;
-    std::cout << "returning\n";
     return std::move(output);
   }
 
@@ -1684,7 +1692,6 @@ namespace bisImageAlgorithms {
   // ---------------------- -------------------
   template<class T> std::unique_ptr<bisSimpleImage<T> >  cropImage(bisSimpleImage<T>* input,int bounds[8],int incr[4])
   {
-
 
     int dim[5]; input->getDimensions(dim);
     float spa[5];  input->getSpacing(spa);
@@ -1849,11 +1856,11 @@ namespace bisImageAlgorithms {
   }
 
     // ---------------------- -------------------
-  template<class T> std::unique_ptr<bisSimpleImage<T> >  blankImage(bisSimpleImage<T>* input,int bounds[6])
+  template<class T> std::unique_ptr<bisSimpleImage<T> >  blankImage(bisSimpleImage<T>* input,int bounds[6],float outside)
   {
     int dim[5]; input->getDimensions(dim);
     float spa[5];  input->getSpacing(spa);
-    
+
     for (int i=0;i<=2;i++) {
 
       int mina=bounds[i*2];
@@ -1879,7 +1886,7 @@ namespace bisImageAlgorithms {
 
     int total=dim[0]*dim[1]*dim[2]*dim[3]*dim[4];
     for (int i=0;i<total;i++)
-      odata[i]=0;
+      odata[i]=outside;
     
     int numcf=dim[4]*dim[3];
     
@@ -1948,11 +1955,11 @@ namespace bisImageAlgorithms {
     return std::move(smoothed);
   }
   
-  template<class T> std::unique_ptr<bisSimpleImage<short> >  prepareImageForRegistration(bisSimpleImage<T>* input,
-											 int numbins,int normalize,
-											 float resolution_factor,float smoothing,int intscale,
-											 int frame,std::string name,
-											 int debug)
+  template<class T> bisSimpleImage<short>* prepareImageForRegistration(bisSimpleImage<T>* input,
+                                                                       int numbins,int normalize,
+                                                                       float resolution_factor,float smoothing,int intscale,
+                                                                       int frame,std::string name,
+                                                                       int debug)
   {
 
     float in_spa[5]; input->getSpacing(in_spa);
@@ -2004,7 +2011,7 @@ namespace bisImageAlgorithms {
     }
 
     double odata[2];
-    std::unique_ptr<bisSimpleImage<short> > out=imageNormalize(resliced.get(),perlow,perhigh,outmaxvalue,odata,name);
+    bisSimpleImage<short>* out=imageNormalize(resliced.get(),perlow,perhigh,outmaxvalue,odata,name);
 
 
     
@@ -2012,23 +2019,22 @@ namespace bisImageAlgorithms {
       out->getImageDimensions(i_dim); out->getImageSpacing(i_spa);
       out->getRange(range);
       print_image(i_dim,i_spa,range);
-      
       std::cout  << " robust 1:99 %, info=" << odata[0] << "," << odata[1] << " numbins=" << numbins << std::endl;
     }
-    return std::move(out);
+    return out;
   }
 
   // ---------------------- -------------------
-  template<class T> std::unique_ptr<bisSimpleImage<short> >  prepareAndResliceImageForRegistration(bisSimpleImage<T>* input,
-                                                                                                   bisAbstractTransformation* reslicexform,
-                                                                                                   int refdim[5],
-                                                                                                   float refspa[5],
-                                                                                                   int numbins=64,int normalize=1,
-                                                                                                   float smoothing=0.0,int intscale=10,
-                                                                                                   int frame=0,std::string name="",
-                                                                                                   int debug=1)  {
-
-
+  template<class T> bisSimpleImage<short>*  prepareAndResliceImageForRegistration(bisSimpleImage<T>* input,
+                                                                                  bisAbstractTransformation* reslicexform,
+                                                                                  int refdim[5],
+                                                                                  float refspa[5],
+                                                                                  int numbins,int normalize,
+                                                                                  float smoothing,int intscale,
+                                                                                  int frame,std::string name,
+                                                                                  int debug)  {
+    
+    
     float sigmas[3]={0,0,0};
     if (smoothing>0.02) {
       for (int ia=0;ia<=2;ia++)
@@ -2063,7 +2069,7 @@ namespace bisImageAlgorithms {
     }
 
     double odata[2];
-    std::unique_ptr<bisSimpleImage<short> > out=imageNormalize(resliced.get(),perlow,perhigh,outmaxvalue,odata,name);
+    bisSimpleImage<short>* out(imageNormalize(resliced.get(),perlow,perhigh,outmaxvalue,odata,name));
 
     if (debug) {
       out->getImageDimensions(i_dim); out->getImageSpacing(i_spa);
@@ -2072,7 +2078,7 @@ namespace bisImageAlgorithms {
       
       std::cout  << " robust 1:99 %, info=" << odata[0] << "," << odata[1] << " numbins=" << numbins << std::endl;
     }
-    return std::move(out);
+    return out;
   }
 
   /** median normalize an image -- set values so that median = 0 and interquartile range = 1
@@ -2080,14 +2086,14 @@ namespace bisImageAlgorithms {
    * @param debug - a debug flag
    * @returns the normalized image
    */
-  template<class T> std::unique_ptr<bisSimpleImage<float> >  medianNormalizeImage(bisSimpleImage<T>* input,int debug)
+  template<class T> bisSimpleImage<float>*  medianNormalizeImage(bisSimpleImage<T>* input,int debug)
   {
     int dim[5]; input->getDimensions(dim);
     float spa[5];  input->getSpacing(spa);
     int slicesize=dim[0]*dim[1];
     int volsize=slicesize*dim[2];
 
-    std::unique_ptr<bisSimpleImage<float> >output(new bisSimpleImage<float>("normalized_image"));
+    bisSimpleImage<float>* output=new bisSimpleImage<float>("normalized_image");
     output->allocate(dim,spa);
 
     float* odata=output->getData();
@@ -2128,7 +2134,7 @@ namespace bisImageAlgorithms {
     for (int i=0;i<datasize;i++) 
       odata[i]=(idata[i]-m)/range;
     
-    return std::move(output);
+    return output;
   }
 
 

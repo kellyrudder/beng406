@@ -68,7 +68,7 @@ class bisMatrixTransformation : public bisAbstractTransformation {
    * @param name name of output matrix
    * @returns output matrix
    */
-  std::unique_ptr<bisSimpleMatrix<float> > getSimpleMatrix(std::string name="");
+  bisSimpleMatrix<float>* getSimpleMatrix(std::string name="");
 
 
   /** Import the current matrix from a  bisSimpleMatrix<float> 
@@ -97,7 +97,7 @@ class bisMatrixTransformation : public bisAbstractTransformation {
   virtual void serializeInPlace(unsigned char* output);
 
   /** returns size needed to serialize this object in bytes */
-  virtual int getRawSize();
+  virtual long getRawSize();
 
 
   // No

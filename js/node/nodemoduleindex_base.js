@@ -26,11 +26,15 @@ const moduleImports = {
     'regressiontests': require('./regressiontestmodule.js'),
     'pipeline' : require('./pipelinemodule.js'),
     'concatenateimages' : require('./concatenateImages.js'),
+    'stackimages' : require('./stackImages.js'),
     'headerinfo' : require('./bis_headerinfo.js'),
-    'computeroilarge' : require('./computeROILarge.js')
+    'computeroilarge' : require('./computeROILarge.js'),
+    'mapelectrodes' : require('./mapElectrodes.js'),
+    'preprocessfmri' : require('./preprocessfMRI.js')
 };
 
 let moduleNames=universalmodules.createModuleNames(moduleImports);
+
 
 let getModule = function(toolname, searchParent = true) {
     

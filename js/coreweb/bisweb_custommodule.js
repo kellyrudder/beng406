@@ -85,6 +85,7 @@ class CustomModule {
         let description = this.module.getDescription();
         this.name = opts.name || description.dialogname || description.name;
         this.dual = opts.dual || false;
+        this.permanent= opts.permanent || false;
 
         let width = opts.width || 250;
 
@@ -95,6 +96,7 @@ class CustomModule {
             hasfooter : false,
             dual : this.dual,
             helpButton : true,
+            permanet : this.permanent,
         });
 
         let paramsMargin = opts.paramsMargin || '10px';
@@ -666,8 +668,6 @@ class CustomModule {
         txt=txt.replace(/\n/g,'<BR>').replace(/\t/g,'&nbsp;&nbsp;&nbsp;&nbsp;');
         txt=txt.replace(/\\n/g,'<BR>').replace(/\\t/g,'&nbsp;&nbsp;&nbsp;&nbsp;');
 
-        console.log(obj.getText(),'--->\n',txt);
-        
         const output=`<div style="margin-left:5px; margin-right:5px; margin-top:5px; overflow-y: auto; position:relative; color:#fefefe; width:100%; background-color:#000000;">${txt}</div>`;
 
         
@@ -696,7 +696,31 @@ class CustomModule {
         });
         return false;
     }
+
+    // -------------------------------------------------------------
+    /** Element State stuff */
+    
+    getElementState() {
+
+        const out={};
+        if (!this.panel)
+            return;
+        out['panelState']=this.panel.getElementState();
+        out['params']=this.guiVars;
+        return out;
+    }
+
+    setElementState(dt=null) {
+        if (!dt)
+            return;
+
+        this.updateParams(dt['params']);
+        this.updateModuleGUIFromInputObjects();
+        this.panel.setElementState(dt['panelState']);
+    }
+   
 }
+
 
 
 

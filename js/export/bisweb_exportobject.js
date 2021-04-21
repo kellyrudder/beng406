@@ -1,11 +1,9 @@
-/*global HTMLElement, Worker */
-
 "use strict";
 
 const bisutil = require('bis_util');
 const genericio = require('bis_genericio');
 const moduleindex=require('moduleindex');
-const bistfutil=require('bis_tfutil');
+//const bistfutil=require('bis_tfutil');
 const bisxformutil = require('bis_transformationutil.js');
 const BisWebDataObject = require('bisweb_dataobject');
 const BisWebImage = require('bisweb_image');
@@ -16,8 +14,15 @@ const BisWebComboTransformation=require('bisweb_combotransformation');
 const BisWebLinearTransformation=require('bisweb_lineartransformation');
 const BisWebGridTransformation=require('bisweb_gridtransformation');
 const BisWebTransformationCollection=require('bisweb_transformationcollection');
+const BisWebSurface=require('bisweb_surface.js');
+const BisWebElectrodeMultiGrid = require('bisweb_electrodemultigrid');
 const userPreferences = require('bisweb_userpreferences.js');
 const biswasmdate=require('biswasmdate.js');
+const basemodule = require('basemodule.js');
+const basemoduleutils = require('baseutils.js');
+
+
+
 
 /**
  * A set of utility functions. <BR>
@@ -74,6 +79,9 @@ module.exports= {
     // Low level code
     bisutil : bisutil,
     genericio : genericio,
+    // Module stuff
+    basemodule : basemodule,
+    basemoduleutils : basemoduleutils,
     // Bisweb info
     userPreferences :     userPreferences,
     // Core Data Structures
@@ -86,10 +94,12 @@ module.exports= {
     BisWebComboTransformation : BisWebComboTransformation,
     BisWebDataObjectCollection :     BisWebDataObjectCollection,
     BisWebTransformationCollection :     BisWebTransformationCollection,
+    BisWebSurface : BisWebSurface,
+    BisWebElectrodeMultiGrid : BisWebElectrodeMultiGrid,
     // Transformation Utilities
     bisxformutil : bisxformutil,
     // Tensor Flow
-    bistfutil: bistfutil,
+    //    bistfutil: bistfutil,
     // WASM build time,
     biswasmdate : biswasmdate,
 };

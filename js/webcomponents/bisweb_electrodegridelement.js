@@ -15,9 +15,6 @@
     
     ENDLICENSE */
 
-/* global setTimeout,HTMLElement */
-
-
 "use strict";
 
 const THREE = require('three');
@@ -975,9 +972,7 @@ class ElectrodeGridElement extends HTMLElement {
         }
         return Promise.reject('Failed to make zip');
     }
-
 }
-
 
 webutil.defineElement('bisweb-electrodegridcontrolelement', ElectrodeGridElement);
 export default ElectrodeGridElement;

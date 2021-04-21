@@ -29,18 +29,19 @@ const bisgenericio=require('bis_genericio');
     @alias BisHeader~typesizes
 */
 const typesizes = {
-    uchar :   [ 1,   Uint8Array   ],
-    schar :    [ 1,   Int8Array    ],
-    cchar :    [ 1,   Int8Array    ],
-    ushort :  [ 2,   Uint16Array  ],
-    sshort :   [ 2,   Int16Array   ],
-    short :   [ 2,   Int16Array   ],
-    uint :    [ 4,   Uint32Array  ], 
-    sint :     [ 4,   Int32Array   ],
-    int :     [ 4,   Int32Array   ],
-    float :   [ 4,   Float32Array ],
-    double :  [ 8,   Float64Array ]
+    'uchar' :   [ 1,   Uint8Array   ],
+    'schar' :    [ 1,   Int8Array    ],
+    'cchar' :    [ 1,   Int8Array    ],
+    'ushort' :  [ 2,   Uint16Array  ],
+    'sshort' :   [ 2,   Int16Array   ],
+    'short' :   [ 2,   Int16Array   ],
+    'uint' :    [ 4,   Uint32Array  ], 
+    'sint' :     [ 4,   Int32Array   ],
+    'int' :     [ 4,   Int32Array   ],
+    'float' :   [ 4,   Float32Array ],
+    'double' :  [ 8,   Float64Array ],
 };
+
 
 /** Map from niftitype (code or number) to name and TypedArray type 
     @alias BisHeader~niftitypes
@@ -56,21 +57,33 @@ const niftitypes= {
     768 : [ 'uint',Uint32Array,768]
 };
 
+
+try {
+    typesizes['int64']=   [ 8,    BigInt64Array];
+    typesizes['uint64']=  [ 8,   BigUint64Array];
+    niftitypes['1024']= [ 'int64',BigInt64Array,8];
+    niftitypes['1280']= [ 'uint64',BigUint64Array,8];
+} catch(e) {
+    // Ignore
+}
+
 /** Map from type name (e.g. char) to niftitype (e.g. 256))
     @alias BisHeader~name2nifticode
 */
 const name2nifticode= {
-    char : 256,
-    schar : 256,
-    uchar : 2,
-    short : 4,
-    sshort : 4,
-    ushort : 512,
-    int : 8,
-    sint : 8,
-    uint : 768,
-    float : 16,
-    double : 64,
+    'char' : 256,
+    'schar' : 256,
+    'uchar' : 2,
+    'short' : 4,
+    'sshort' : 4,
+    'ushort' : 512,
+    'int' : 8,
+    'sint' : 8,
+    'uint' : 768,
+    'float' : 16,
+    'double' : 64,
+    'int64'  : 1024,
+    'uint64'  : 1280
 };
 
 /** Nifti Header Spec array of triples [ name, type, number of elements ]
@@ -272,6 +285,12 @@ class BisHeader {
                 num=i;
         }
         dim[0]=num;
+
+        // Units fix, force mm
+        //let units=this.struct['xyzt_units'];
+        //        if (units !==0 && units !== 2) {
+        //  console.log('+++ warning units=',units,' may need to rescale');
+        //      }
     }
     
     

@@ -86,21 +86,52 @@ More information about each of these tools may be found in the links contained i
 
 If you are comfortable with Docker, then you can create and build bisweb in a
 docker environment. See
-[our docker repository]([https://hub.docker.com/r/xeniosp/bisweb).
+[our docker repository]([https://hub.docker.com/r/bisweb/devel).
 
 In particular you will need to 
 
 1. Install the container
 
-    docker pull xeniosp/bisweb
+    docker pull bisweb/devel
     
 2. Log in to the container
 
-    sudo docker run -p 8080:8080 -it xeniosp/bisweb bash
+        docker run -it --rm -p 8080:80 -p 24000:24000 \
+          --mount src=${HOME},target=/hostfiles,type=bind \
+          -e LOCAL_USER_ID=`id -u $USER` \
+          --name bisweb \
+          bisweb/devel 
+
+This creates a new user bisweb with the same uid as the host user running the
+container and mounts their home directory ($HOME) in a directory called
+/container
+
+Once you start the container you will meet a prompt of the form
+
+     ------------------------ In Bisweb docker image ----------------------------------------
+    To create a bisweb source directory
+    1. Navigate to the desired directory
+    2. Run the script: biswebconfig.sh
+    ------------------------ ---------------------------------------------------------------
+
+    [BISWEBDEVEL]:/hostfiles>
     
-3. The source tree for bisweb will be in the directory /root/bisweb/src and /root/bisweb/gpl (for the gpl plugin). See the [Dockerfile](../docker/Dockerfile)
-   for more information. You can update the source (this is mapped to `devel`
-   branch) using `git pull` as usual.
+If everything goes well you are in your home directory on the host
+machine. From here create your directory e.g.
+
+    mkdir bisweb
+    cd bisweb
+    
+and run the script
+    
+    biswebconfig.sh
+    
+This will download the bisweb source tree and configure and build it as
+needed.  Once this is completed, you now have a full bisweb source directory configured in your
+directory of choice (we will call this `/hostfiles/bisweb`). 
+
+Look below under Building and Running BioImage Suite web for more
+details. Essentially all the steps are configured though.
 
 ## Option 2. Linux/Ubuntu
 
@@ -118,7 +149,7 @@ are already on your system)
 
 Then install the following 2 python packages (if you are interested in python)
 
-    sudo pip3 install numpy nibabel
+    sudo python3 -m pip install --update pip setuptools
 
 Then install the following npm dependencies:
 
@@ -135,17 +166,36 @@ We suggest using the
 [Windows Subsystem for Linux (WSL)](https://docs.microsoft.com/en-us/windows/wsl/install-win10). Install
 the Ubuntu VM and follow the same steps as for Linux/Ubuntu above.
 
+If you really want to use MS-Windows Native tools
+
+1. Install Microsoft Visual Studio Community Edition (2019). Make sure you
+   enable C++ development. Do not install Python development.
+2. Install CMake and make sure it is added to your path.
+3. Install Node.js v12 and make sure it is added to your path. Also install
+   the windows build essentials (there is an option in the node installer)
+   which will include Python 3.8.x. Go to c:\python38 and copy python.exe to
+   python3.exe (some build tools look for python3)
+4. Install git for windows and make sure it is in your path.
+
+
+Next Install Prerequisites: Open a command line and type
+
+    python3 -m pip install --update pip setuptools
+    npm install -g gulp mocha rimraf
+    npm install -g electron --unsafe-perm=true --allow-root
+    npm install -g electron-packager
+    
+
+
+
 ## Option 3. MacOS 10.14
 
 This is similar to Linux. First install Xcode and [homebrew](https://brew.sh/)
 if you do not already have these installed.
 
-Then install the pre-requisite packages using brew -- the instructions below
-are for Node V.10.
+Also install node v12 or v14.
 
-    brew install python2 python3 nodejs cmake node@10 doxygen graphviz
-    brew link python2
-    brew link --force node@10
+    brew install cmake doxygen graphviz
     brew cask install java
 
 
@@ -239,10 +289,18 @@ This will create a number of sub-directories, (e.g. `build/web`, `build/wasm`,
 `build/dist`, `build/native`, `build/doc` `build/install`) and also install
 emscripten as needed.
 
+### Create an initial build
+
 Then you can perform a full initial build using
 
     cd build
     ./fullbuild.sh
+    
+__Note:__ If building natively on MS-Windows: Open the _x64 Native Tools
+Command Prompt for VS 2019_ command shell:
+
+    cd bisweb
+    compiletools/fullbuild.bat
     
 
 ### Open the Web Applications
@@ -288,6 +346,8 @@ The `fullbuild.sh` script calls 4 container scripts
 If you simply want to rebuild one of these components, just run the individual
 script (e.g. `webbuild.sh` to rebuild the web application)
 
+
+_Note_: On MS-Windows replace .sh with .bat in the names above.
 
 ## Configuring and Building -- The Manual Way
 

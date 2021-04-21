@@ -46,7 +46,7 @@ template <class BIS_TT> unsigned char* addGridToImageTemplate(unsigned char* inp
     std::cout << "Beginning actual addGridToImage : gap=" << gap << " intensity value=" << value << std::endl;
 
   
-  std::unique_ptr<bisSimpleImage<unsigned char> > out_image=bisAdvancedImageAlgorithms::addGridToImage(inp_image.get(),gap,value);
+  std::unique_ptr<bisSimpleImage<unsigned char> > out_image(bisAdvancedImageAlgorithms::addGridToImage(inp_image.get(),gap,value));
   
   if (debug)
     std::cout << "addGridToImage Done" << std::endl;
@@ -110,8 +110,8 @@ template <class BIS_TT> unsigned char* projectImageTemplate(unsigned char* input
   }
 
   if (!usemask) {
-    std::unique_ptr<bisSimpleImage<BIS_TT> > out_image=bisAdvancedImageAlgorithms::projectImage(inp_image.get(),
-                                                                                                domip,axis,flip,lps,sigma,threshold,gradsigma,window);
+    std::unique_ptr<bisSimpleImage<BIS_TT> > out_image(bisAdvancedImageAlgorithms::projectImage(inp_image.get(),
+                                                                                                domip,axis,flip,lps,sigma,threshold,gradsigma,window,debug));
     if (debug)
       std::cout << "Projecting Done" << std::endl;
     
@@ -158,11 +158,60 @@ unsigned char*  projectImageWASM(unsigned char* input,unsigned char* funcinput,c
 
 }
 
+
+  /** Projects and averages a 3D image (inside a mask) to 2D 
+   * @param input serialized input as unsigned char array 
+   * @param functional_input serialized functional input (optional) as unsigned char array 
+   * @param jsonstring the parameter string for the algorithm 
+   * { "axis" : -1,  lps = 0 }
+   * @param debug if > 0 print debug messages
+   * @returns a pointer to a serialized image
+   */
+
+unsigned char*  projectAverageImageWASM(unsigned char* input_ptr,unsigned char* mask_ptr,const char* jsonstring,int debug)
+{
+  std::unique_ptr<bisJSONParameterList> params(new bisJSONParameterList());
+  int ok=params->parseJSONString(jsonstring);
+  if (!ok) 
+    return 0;
+  
+  if(debug)
+    params->print();
+
+  std::unique_ptr<bisSimpleImage<float> > inp_image(new bisSimpleImage<float>("inp_image"));
+  if (!inp_image->linkIntoPointer(input_ptr)) 
+    return 0;
+
+  std::unique_ptr<bisSimpleImage<float> > mask_input(new bisSimpleImage<float>("mask_json"));
+  if (!mask_input->linkIntoPointer(mask_ptr))
+    return 0;
+  
+  int lps=params->getBooleanValue("lps",0);
+  int axis=params->getIntValue("axis",1);
+  
+  if (debug) 
+    std::cout << "Beginning actual Image Project+Averaging" << std::endl;
+
+  std::unique_ptr<bisSimpleImage<float> > out_image(new bisSimpleImage<float>("output_proj"));
+  int flag=bisAdvancedImageAlgorithms::projectAverageImageWithMask(inp_image.get(),mask_input.get(),out_image.get(),
+                                                                   axis,lps);
+  if (debug)
+    std::cout << "Mask Projecting+Averaging Done ok=" << flag << std::endl;
+  if (!flag)
+    return 0;
+    
+  return out_image->releaseAndReturnRawArray();
+}
+
+
+
 // BIS: { 'backProjectImageWASM', 'bisImage', [ 'bisImage', 'ParamObj', 'debug' ] } 
 unsigned char*  backProjectImageWASM(unsigned char* input_ptr,unsigned char* input2d_ptr,const char* jsonstring,int debug) {
 
+  debug=1;
+  
   if (debug)
-    std::cout << "_____ Beginning backProjectImageWASM" << std::endl;
+    std::cout << "_____ Beginning backProjectImageWASM" << jsonstring << std::endl;
   
   std::unique_ptr<bisJSONParameterList> params(new bisJSONParameterList());
   if (!params->parseJSONString(jsonstring)) {
@@ -196,10 +245,104 @@ unsigned char*  backProjectImageWASM(unsigned char* input_ptr,unsigned char* inp
     std::cout << "Beginning actual Image Back Projecting" << std::endl;
   }
   
-  std::unique_ptr<bisSimpleImage<float> > out_image=bisAdvancedImageAlgorithms::backProjectImage(threed.get(),twod.get(),axis,flipz,flipy,threshold,window);
+  std::unique_ptr<bisSimpleImage<float> > out_image(bisAdvancedImageAlgorithms::backProjectImage(threed.get(),twod.get(),axis,flipz,flipy,threshold,window));
   if (debug)
     std::cout << "Back Projecting Done" << std::endl;
   
+  return out_image->releaseAndReturnRawArray();
+
+}
+
+
+
+  // BIS: { 'computeBackProjectAndProjectPointPairsWASM', 'Matrix', [ 'bisImage', 'bisTransformation', 'bisTransformation',  'ParamObj', 'debug' ] } 
+unsigned char*  computeBackProjectAndProjectPointPairsWASM(unsigned char* input_ptr,unsigned char* xform_ptr,unsigned char* rotation_ptr,const char* jsonstring,int debug) {
+
+  if (debug)
+    std::cout << "_____ Beginning computeBackProjectAndProjectPointPairsWASM" << std::endl;
+  
+  std::unique_ptr<bisJSONParameterList> params(new bisJSONParameterList());
+  if (!params->parseJSONString(jsonstring)) {
+    std::cout << "_____ Failed to parse parameters in computeBackProjectAndProjectPointPairsWASM" << std::endl;
+    return 0;
+  }
+  
+  if(debug)
+    params->print("from computeBackProjectAndProjectPointPairsWASM","_____");
+
+  std::unique_ptr<bisSimpleImage<float> > threed(new bisSimpleImage<float>("threed"));
+
+  if (!threed->linkIntoPointer(input_ptr)) {
+    std::cout << "_____ Failed to link into input_ptr in computeBackProjectAndProjectPointPairsWASM" << std::endl;
+    return 0;
+  }
+
+  std::shared_ptr<bisAbstractTransformation> warpXform=bisDataObjectFactory::deserializeTransformation(xform_ptr,"warpxform");
+  if (warpXform.get()==0) {
+    std::cerr << "Failed to deserialize transformation " << std::endl;
+    return 0;
+  }
+
+  std::shared_ptr<bisAbstractTransformation> rotation=bisDataObjectFactory::deserializeTransformation(rotation_ptr,"rotation");
+  if (rotation.get()==0) {
+    std::cerr << "Failed to deserialize rotation " << std::endl;
+    return 0;
+  }
+
+  int flipz=params->getBooleanValue("flip",0);
+  int flipy=params->getBooleanValue("flipy",0);
+  int axis=params->getIntValue("axis",1);
+  float threshold=params->getFloatValue("threshold",0.05);
+  int depth=params->getIntValue("depth",0);
+  int height2d=params->getIntValue("2dheight",200);
+  float spacing2d=params->getFloatValue("2dspacing",0.1);  
+  
+  if (debug) {
+    std::cout << "Beginning actual Image Back Pair Making" << std::endl;
+  }
+
+  std::unique_ptr<bisSimpleMatrix<float> > out_matrix(new bisSimpleMatrix<float>());
+  
+  bisAdvancedImageAlgorithms::computeBackProjectAndProjectPointPairs(threed.get(),
+                                                                     warpXform.get(),
+                                                                     rotation.get(),
+                                                                     out_matrix.get(),
+                                                                     axis,flipz,flipy,threshold,depth,height2d,spacing2d,debug);
+if (debug)
+    std::cout << "Back Projecting Pair Done" << std::endl;
+  
+  return out_matrix->releaseAndReturnRawArray();
+
+}
+
+  // BIS: { 'projectMapImageWASM', 'bisImage', [ 'bisImage', 'bisImage','Matrix', 'debug' ] }
+BISEXPORT unsigned char*  projectMapImageWASM(unsigned char* ref_ptr,unsigned char* input_ptr,unsigned char* matrix_ptr,int debug) {
+
+  if (debug)
+    std::cout << "_____ Beginning projectMapImageWASM" << std::endl;
+  
+  std::unique_ptr<bisSimpleImage<float> > ref(new bisSimpleImage<float>("ref"));
+  if (!ref->linkIntoPointer(ref_ptr)) {
+    std::cout << "_____ Failed to link into ref_ptr in projectMapImageWasm" << std::endl;
+    return 0;
+  }
+
+  std::unique_ptr<bisSimpleImage<float> > input(new bisSimpleImage<float>("ref"));
+  if (!input->linkIntoPointer(input_ptr)) {
+    std::cout << "_____ Failed to link into input_ptr in projectMapImageWasm" << std::endl;
+    return 0;
+  }
+
+  std::unique_ptr<bisSimpleMatrix<float> > mapmatrix(new bisSimpleMatrix<float>("matr"));
+  if (!mapmatrix->linkIntoPointer(matrix_ptr)) {
+    std::cout << "_____ Failed to link into matrix_ptr in projectMapImageWasm" << std::endl;
+    return 0;
+  }
+
+  std::unique_ptr<bisSimpleImage<float> > out_image(bisAdvancedImageAlgorithms::projectMapImage(ref.get(),
+                                                                                                input.get(),
+                                                                                                mapmatrix.get(),debug));
+                                                                                                
   return out_image->releaseAndReturnRawArray();
 
 }

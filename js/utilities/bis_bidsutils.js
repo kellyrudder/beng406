@@ -1,6 +1,7 @@
 'use strict';
 
 const bis_genericio = require('bis_genericio');
+const bisweb_serverutils = require('bisweb_serverutils.js');
 const colors=bis_genericio.getcolorsmodule();
 const fs = bis_genericio.getfsmodule();
 
@@ -8,11 +9,6 @@ const biswrap = require('libbiswasm_wrapper.js');
 const baseutil = require('baseutils.js');
 
 const SEPARATOR=bis_genericio.getPathSeparator();
-
-//Need to keep track of labels to know if there are repeats, in which case they should be given a run number
-let labelsMap = {};
-
-
 
 const dicomParametersFilename = 'dicom_job_info.json';
 const sourceDirectoryName = 'sourcedata';
@@ -48,9 +44,11 @@ let dicom2BIDS = async function (opts) {
         console.log('++++ dicom2BIDS opts=', opts);
 
         //read size of directory to determine whether or not to calculate checksums
-        let total = await readSizeRecursive(indir) / 1024 / 1024 / 1024; //convert to gigabytes
-        let calcHash = true;
-        if (total > 2) { console.log('---- dicom2BIDS: study too large to parse checksums, skipping'); calcHash = false; }
+        let calcHash = false;
+        if (calcHash) {
+            let total = await readSizeRecursive(indir) / 1024 / 1024 / 1024; //convert to gigabytes
+            if (total > 2) { console.log('---- dicom2BIDS: study too large to parse checksums, skipping'); calcHash = false; }
+        }
 
         let matchniix = bis_genericio.joinFilenames(indir, '*(*.nii.gz|*.nii)');
         let matchsupp = bis_genericio.joinFilenames(indir, '!(*.nii.gz|*.nii)');
@@ -67,8 +65,24 @@ let dicom2BIDS = async function (opts) {
             return errorfn('No data to convert in ' + indir);
         }
 
+        //try to infer protocol name from the converted file (default format is 'folder-name_protocol-name_timestamp_series-number')
+        let imageFile = bis_genericio.getBaseName(imageFiles[0]), splitImageFile = imageFile.split(/__/), subjectName = '01';
+
+        //determine position of protocol name by position of timestamp (which should be a number)
+        console.log('_________________________________________________');
+
+        
+        if (!isNaN(splitImageFile[2])) {
+            //extract subject name (pa, pb, pc plus a number) 
+            let matchstring = /(p[A-z]\d*)/g;
+            subjectName = matchstring.exec(splitImageFile[0]) || [ 'unknown','01' ];
+            subjectName=subjectName[1];
+            console.log('____Subjectname=',subjectName);
+        } 
+
+
         let outputdirectory = bis_genericio.joinFilenames(outdir, sourceDirectoryName);
-        let subjectdirectory = bis_genericio.joinFilenames(outputdirectory, 'sub-01');
+        let subjectdirectory = bis_genericio.joinFilenames(outputdirectory, `sub-${subjectName}`);
 
         //Create BIDS folders and filenames
         if (DEBUG)
@@ -101,14 +115,12 @@ let dicom2BIDS = async function (opts) {
                 }
             }
         }
-
+        //console.log(JSON.stringify(dicomobj,null,4));
         await writeDicomMetadataFiles(outputdirectory, dicomobj, changedFilenames);
-
-        labelsMap = {};
-        return outputdirectory;
+        return Promise.resolve(outputdirectory);
     } catch (e) {
         console.log('An error occured during BIDS conversion', e);
-        labelsMap = {};
+        return Promise.reject(e);
     }
 
 };
@@ -127,7 +139,7 @@ let calculateChecksums = (inputFiles) => {
         console.log('++++ BIDSUTIL: calculating checksums');
         let promises = [];
         for (let filename of inputFiles) {
-            promises.push(bis_genericio.makeFileChecksum(filename));
+            promises.push(bisweb_serverutils.makeFileChecksum(filename));
         }
 
         Promise.all(promises)
@@ -409,16 +421,18 @@ let generateMoveFilesArrays = (imagefiles, supportingfiles, dirs) => {
         }
 
         //BIDS uses underscores as separator characters to show hierarchy in filenames, so change underscores to hyphens to avoid ambiguity
-        filename = filename.split('_').join('-');
+        let splitFilename = filename.split(/__/);
+        filename = splitFilename.join('-');
 
         let bidsLabel = parseBIDSLabel(filename, directory), namesArray;
-        let runNumber = getRunNumber(bidsLabel, fileExtension);
+        let runNumber = getRunNumber(splitFilename);
 
         //may change in the future, though currently looks a bit more specific than needed
         if (directory === 'anat') {
             namesArray = [ splitsubdirectory[splitsubdirectory.length - 1], runNumber, bidsLabel];
         } else if (directory === 'func') {
-            namesArray = [ splitsubdirectory[splitsubdirectory.length - 1], 'task-unnamed', runNumber, bidsLabel];
+            let taskName = formatTaskname(splitFilename);
+            namesArray = [ splitsubdirectory[splitsubdirectory.length - 1], `task-${taskName}`, runNumber, bidsLabel];
         } else if (directory === 'localizer') {
             namesArray = [ splitsubdirectory[splitsubdirectory.length - 1], runNumber, bidsLabel];
         } else if (directory === 'dwi') {
@@ -432,27 +446,32 @@ let generateMoveFilesArrays = (imagefiles, supportingfiles, dirs) => {
     }
 
 
-    //Returns the number of runs with the same name name component for a directory type and updates the count in labelsMap (global map of keys seen so far)
-    function getRunNumber(bidsLabel, fileExtension) {
-        let runNum;
-        
-        if (labelsMap[bidsLabel]) {
-            if (fileExtension.includes('nii')) {
-                //supporting files are moved before the image file in the code above
-                //so once we find the image we can safely increment the label in labelsMap
-                runNum = labelsMap[bidsLabel];
-                labelsMap[bidsLabel] = labelsMap[bidsLabel] + 1;
-            } else {
-                runNum = labelsMap[bidsLabel];
-            }
-        } else {
-            labelsMap[bidsLabel] = 1;
-            runNum = 1;
+    //Attempts to infer task name from protocol portion of 
+    function formatTaskname(splitFilename) {
+        let taskName = 'unnamed';
+        if (!isNaN(splitFilename[2])) {
+            taskName = splitFilename[1];
+        } else if (!isNaN(splitFilename[1])) {
+            taskName = splitFilename[0];
         }
 
-        if (runNum < 10) { runNum = '0' + runNum; }
-        return 'run-' + runNum; 
+        //remove common phrases and characters from the taskname, then turn it into a single word
+        taskName = taskName.replace(/(bold[^A-Za-z\d]|MB[^A-Za-z\d]|\dmm[^A-Za-z\d])/g, '');
+        taskName = taskName.replace(/[\s_,'-]/, '');
+        return taskName.toLowerCase();
     }
+
+    //Gets the series number for the image off the number portion of the raw DICOM file
+    function getRunNumber(splitFilename) {
+        let num = splitFilename[splitFilename.length - 1];
+
+        //remove file extension (or anything else that may be attached to the run)
+        num = num.split('-')[0].split('.')[0];
+        if (parseInt(num) < 10) { num = '0' + num; }
+
+        return 'run-' + num;
+    }
+
 };
 
 /**
@@ -518,7 +537,7 @@ let parseDate = (dcm2niiImage) => {
     let dateRegex = /\d{14}/g;
     let fileString = dcm2niiImage;
     let dateMatch = dateRegex.exec(fileString);
-    return dateMatch[0];
+    return dateMatch[0] || 'no-date';
 };
 
 /**
@@ -922,6 +941,61 @@ let cleanRow=(line) => {
  * @param {String} outputDirectory - Filepath of the output directory.
  * @param {Boolean} save - Whether or not to save the parsed JSON file to disk.  
  */
+
+let parseIndividualTaskFileFromTSV = (text)   => {
+
+
+    function formatEntry(onset, duration) {
+        let lowRange = parseInt(onset), highRange = parseInt(lowRange) + parseInt(duration);
+        return `${lowRange}-${highRange}`;
+    }
+
+    //Adds a row from the tsv file as an entry in parsedData
+    function addData(onset, duration, type, parsedData) {
+        
+        let entry = formatEntry(onset, duration);
+
+        //adding to an existing key may require making the data at the existing key an array
+        if (parsedData[type]) {
+            if (Array.isArray(parsedData[type])) {
+                parsedData[type].push(entry);
+            } else {
+                parsedData[type] = [ parsedData[type] ];
+                parsedData[type].push(entry);
+            }
+        } else {
+            parsedData[type] = entry;
+        }
+    }
+
+    
+    let tsvData = text, parsedData = {};
+                    
+    //Split rows based on newline character to get each row
+    let splitRows = tsvData.split('\n');
+    let cols = cleanRow(splitRows[0]).split('\t');
+    
+    let onsetIndex = cols.findIndex ( (element) => { return element.toLowerCase() === 'onset'; } );
+    let durationIndex = cols.findIndex( (element) => { return element.toLowerCase() === 'duration'; });
+    let typeIndex = cols.findIndex( (element) => { return element.toLowerCase() === 'trial_type'; });
+    
+    splitRows = splitRows.slice(1,-1);
+    for (let row of splitRows) {
+        row = cleanRow(row).split('\t');
+        let onset = row[onsetIndex];
+        let duration = row[durationIndex]; 
+        let type = row[typeIndex];
+        
+        addData(onset, duration, type, parsedData);
+    }
+    
+    return parsedData;
+    
+
+    
+};
+
+
 let parseTaskFileFromTSV = (tsvDirectory, outputDirectory, save = true) => {
     return new Promise ( (resolve, reject) => {
         let matchstring = tsvDirectory + SEPARATOR + '*.tsv';
@@ -1033,6 +1107,7 @@ module.exports = {
     getSettingsFile : getSettingsFile,
     getSettingsEntry : getSettingsEntry,
     convertTASKFileToTSV : convertTASKFileToTSV,
+    parseIndividualTaskFileFromTSV : parseIndividualTaskFileFromTSV,
     parseTaskFileFromTSV : parseTaskFileFromTSV,
     dicomParametersFilename : dicomParametersFilename
 };

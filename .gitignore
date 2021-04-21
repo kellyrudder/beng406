@@ -22,5 +22,10 @@ package-lock.json
 **/*.o
 **/libbiswasm_wasm.js
 web/LICENSE
-docker/binary/*sh
-docker/binary/*tgz
+docker/binary/bisweb*tar.gz
+docker/binary/bisweb*zip
+docker/binary/bisweb*tgz
+various/vtk/*
+various/connatlas/*/output/*
+npm-shrinkwrap.json
+    

@@ -15,7 +15,6 @@
     
     ENDLICENSE */
 
-/* global window,document,setTimeout */
 "use strict";
 
 /**
@@ -764,7 +763,7 @@ const webutil = {
      * @param {boolean} open - if true add 'in' to class list of panel-collapse
      * @returns {JQueryElement} - the panel-body to which to add stuff
      */
-    createCollapseElement: function (parent, title, open) {
+    createCollapseElement: function (parent, title, open, helpbutton = false) {
         open = open || false;
         var parid = parent.attr('id');
         var newid = webutil.createWithTemplate(internal.templates.bispanel, parent);
@@ -776,6 +775,13 @@ const webutil = {
         body.empty();
         if (open)
             body.parent().addClass('in');
+
+        if (helpbutton) {
+            let helpButtonItem = $(`<span class='bisweb-span-button glyphicon glyphicon-question-sign' style='float: right'></span>`);
+            let panelHeading = div.find('.panel-title');
+            panelHeading.append(helpButtonItem);
+        }
+
         // Eliminate div as it is a problem in this case
         $(div).children().appendTo(parent); div.remove();
 
@@ -828,10 +834,10 @@ const webutil = {
      * @alias WebUtil.createdialog
      * @returns {object} opts - the output collection of JQueryElement's. opts.dialog = main dialog, opts.show -- command to show, opts.hide = command to hide
      */
-    createdialog: function (name, w, h, x, y, zindex,closecallback=null) {
+    createdialog: function (name, w, h, x, y, zindex,closecallback=null,motion=true) {
 
         let dlg = document.createElement('bisweb-dialogelement');
-        dlg.create(name,w,h,x,y,zindex,true,closecallback);
+        dlg.create(name,w,h,x,y,zindex,motion,closecallback);
         return dlg;
     },
 
@@ -947,6 +953,21 @@ const webutil = {
         }
         return menuitem;
     },
+
+    // ------------------------------------------------------------------------
+    createLongInfoText: function(txt,title='For your Information',dh=-1.0) {
+
+        if (dh<0) {
+            dh=Math.round(window.innerHeight*0.7);
+        }
+        const output=`<div style="margin-left:3px; margin-right:3px; margin-top:3px; overflow-y: auto; position:relative; color:#fefefe; width:100%; background-color:#000000; max-height:${dh}px; overflow-y: auto; overflow-x: auto">`+txt+`</div>`;
+        
+        bootbox.dialog({
+            title: title,
+            message: output,
+        });
+    },
+    
     // ------------------------------------------------------------------------
     /** create alert message
      * @param {string} text - text to display in the alert message
@@ -967,14 +988,17 @@ const webutil = {
         top     = top + internal.alerttop;
         
         let b = 'info';
-        if (error === true)
+        let extraz=0;
+        if (error === true) {
             b = 'danger';
-        else if (error==="progress")
+            extraz=5000;
+        } else if (error==="progress") {
             b='success';
-
+        }
+        
 
         let w = $(`
-            <div class="alert alert-${b} alert-dismissible" role="alert" style="position:absolute; top:${top}px; left:10px; z-index:${1000+internal.alertcount}">
+            <div class="alert alert-${b} alert-dismissible" role="alert" style="position:absolute; top:${top}px; left:10px; z-index:${100+internal.alertcount+extraz}">
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>

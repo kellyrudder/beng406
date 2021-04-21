@@ -197,9 +197,9 @@ var createHTML=function(toolname,outdir,libjs,commoncss,gpl=true) {
         if (libjs!=='') {
             if (toolname!=="index") {
                 if (gpl) 
-                    alljs=[ 'webcomponents-lite.js', 'jquery.min.js', 'three.min.js', 'bootstrap.min.js', 'libbiswasm_wasm.js', libjs  ];
+                    alljs=[ 'webcomponents-lite.js', 'jquery.min.js', 'three.min.js', 'd3.min.js' , 'bootstrap.min.js', 'libbiswasm_wasm.js', libjs  ];
                 else
-                    alljs=[ 'webcomponents-lite.js', 'jquery.min.js', 'three.min.js', 'bootstrap.min.js', 'libbiswasm_nongpl_wasm.js', libjs  ];
+                    alljs=[ 'webcomponents-lite.js', 'jquery.min.js', 'three.min.js', 'd3.min.js',  'bootstrap.min.js', 'libbiswasm_nongpl_wasm.js', libjs  ];
             } else {
                 alljs=[ 'jquery.min.js', 'bootstrap.min.js', libjs  ];
             }
@@ -364,8 +364,12 @@ var createZIPFile = function(baseoutput,outdir,version,distdir,done) {
               outdir+"var/*",
               `!${outdir}/node_modules`,
               `!${outdir}/package.json`,
-              `!${outdir}/*.map`
-             ],
+              `!${outdir}/*.map`,
+              `!${outdir}/images/#*`,
+              `!${outdir}/images/*~`,
+              `!${outdir}/images/*/*~`,
+              `!${outdir}/images/*/#*`,
+               ],
              {base:outdir}).pipe(gulpzip(outfile)).pipe(gulp.dest('.')).on('end', () => {
                  outfile=path.resolve(outfile);
                  let mbytes=getFileSize(outfile);
@@ -389,7 +393,8 @@ var inno=function(tools, version, indir , distdir ) {
     let i_license = path.resolve(indir, 'build/web/LICENSE');
     let i_indir   = path.resolve(indir, distdir+'/BioImageSuiteWeb-win32-x64');
     let i_date    = getDate();
-
+    let i_icon2   = path.resolve(indir,'various/config/biswizard.bmp');
+    let i_icon3   = path.resolve(indir,'various/config/bissmall.bmp');
 
     
     let i_tools = "";
@@ -417,17 +422,74 @@ var inno=function(tools, version, indir , distdir ) {
         if (i<(max-1))
             i_tools+='\n';
     }
+
+    let options={outputdir : i_odir,
+                 iconfile : i_icon,
+                 licensefile : i_license,
+                 version : version,
+                 date : i_date,
+                 tools : i_tools,
+                 indir : i_indir,
+                 iconfile2 : i_icon2,
+                 iconfile3 : i_icon3,
+                };
+    console.log(colors.yellow(getTime()+' '+JSON.stringify(options,null,2)));
     
     console.log(colors.yellow(getTime()+' Creating electron inno setup file '+distdir+'/biselectron.iss for BioImageSuite Web '+i_date));
     return gulp.src('./config/biselectron.iss')
-        .pipe(template({outputdir : i_odir,
-                        iconfile : i_icon,
-                        licensefile : i_license,
-                        version : version,
-                        date : i_date,
-                        tools : i_tools,
-                        indir : i_indir}))
+        .pipe(template(options))
         .pipe(gulp.dest(distdir));
+};
+
+var appdmg=function(tools, version, indir , distdir ) {
+
+
+    let i_odir    = path.resolve(indir, distdir);
+    let i_icon    = path.resolve(indir, 'various/config/installer.icns');
+    let i_logo    = path.resolve(indir, 'various/config/bisgradlogo.png');
+//    let i_indir   = path.resolve(indir, distdir+'/BioImageSuiteWeb-darwin-x64/BioImageSuiteWeb.app');
+    let i_date    = getDate();
+
+    let out={
+        'title' : 'BioImageSuiteWebInstaller',
+        'icon' :  i_icon,
+        'background' : i_logo,
+        'window' : {
+            position : {
+                'x' : 400,
+                'y' : 100,
+            },
+            size : {
+                width : 900,
+                height : 450
+            }
+        },
+        'background-color' : '#1C2D40',
+        "contents": [
+            { "x": 600, "y": 350, "type": "link", "path": "/Applications" },
+            { "x": 300, "y": 350, "type": "file", "path": "BioImageSuiteWeb.app" }
+        ]
+    };
+
+    let outfile=path.join(i_odir,path.join('BioImageSuiteWeb-darwin-x64','appdmg.json'));
+    let outfile2=path.join(i_odir,'appdmg.json');
+
+    fs.writeFileSync(outfile2,JSON.stringify(out,null,4));
+    let dmgfile=        path.join(i_odir,'BioImageSuiteWebInstaller_'+version+'_'+i_date+'.dmg');
+
+    let cmdlist=[ 
+        'rimraf',
+        dmgfile+';',
+        'cp',
+        outfile2,
+        outfile+';',
+        'appdmg',
+        outfile,
+        dmgfile,
+    ];
+
+    return cmdlist.join(' ');
+
 };
 
 // -----------------------------------------------------------------------------------------
@@ -477,6 +539,7 @@ var createPackageInternal=function(dopackage=1,tools=[],indir=_dirname+"../",out
         
         if (dopackage) {
             cmdlist.push(`${rimrafname} ${path.resolve(idir,'node_modules')}`);
+            cmdlist.push(`${rimrafname} ${path.resolve(idir,'manifest.json')}`);
             cmdlist.push('npm install -d');
             let modclean=getToolPath('modclean');
             cmdlist.push(modclean+' -r -a *.ts ');
@@ -487,7 +550,7 @@ var createPackageInternal=function(dopackage=1,tools=[],indir=_dirname+"../",out
 
         
         
-        let eversion ="5.0.6";
+        let eversion ="11.1.1";
         let ep=getToolPath('electron-packager');
         
         let cmdline=ep+' '+path.resolve(outdir)+' BioImageSuiteWeb --arch=x64 --electron-version '+eversion+' --out '+path.resolve(distdir)+' --overwrite '+
@@ -508,7 +571,6 @@ var createPackageInternal=function(dopackage=1,tools=[],indir=_dirname+"../",out
 
         // Cleanup useless files before we electron package
         let todelete =  [
-            path.resolve(path.join(newappdir,'node_modules/@tensorflow/tfjs-node/deps')),
             path.resolve(path.join(newappdir,'*.map')),
             path.resolve(path.join(newappdir,'server.zip')),
             path.resolve(path.join(newappdir,'mni2tal')),
@@ -540,11 +602,17 @@ var createPackageInternal=function(dopackage=1,tools=[],indir=_dirname+"../",out
                 cmdlist.push(cmdline+` --platform=darwin --icon ${path.resolve(indir,'web/images/bioimagesuite.icns')}`);
             if (dopackage===3)
                 cmdlist.push(cleancmd);
-            if (dopackage>0)  {
-                ziplist.push( {
-                    zipfile : zipfile,
-                    zipdir  : zipindir
-                });
+
+            if (dopackage>0) {
+
+                if (n==='linux') {
+                    ziplist.push( {
+                        zipfile : zipfile,
+                        zipdir  : zipindir
+                    });
+                }  else {
+                    cmdlist.push(appdmg(tools,version,indir,distdir));
+                }
             }
         }
     }
@@ -641,6 +709,7 @@ var createnpmpackage=function(indir,version,in_outdir,done) {
                    `${indir}/build/web/webcomponents-lite.js`,
                    `${indir}/build/web/jquery.min.js`,
                    `${indir}/build/web/three.min.js`,
+                   `${indir}/build/web/d3.min.js`,
                    `${indir}/build/web/bootstrap.min.js`,
                    `${indir}/build/web/bislib.css`,
                    `${indir}/build/web/bislib_bright.css`,

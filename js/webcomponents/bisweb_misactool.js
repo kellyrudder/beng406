@@ -1,5 +1,3 @@
-/* global document */
-
 "use strict";
 
 const $=require('jquery');
@@ -44,6 +42,7 @@ class MisacTool extends HTMLElement {
                 'Optical'  : { obj : null, filename : '' },
                 'OpticalParcellation'  : { obj : null, filename : '' },
                 'StimROI'  : { obj : null, filename : '' },
+                'PET'  : { obj : null, filename : '' },
             },
             transforms : {
                 'Ref2Anat' : {
@@ -101,6 +100,13 @@ class MisacTool extends HTMLElement {
                     reference : 'ProjAngio',
                     target : 'Optical'
                 },
+                'Pet2Anatomical' : {
+                    obj : null,
+                    filename : '',
+                    reference : 'Anatomical',
+                    target : 'PET',
+                },
+
             }
         };
 
@@ -206,7 +212,7 @@ class MisacTool extends HTMLElement {
             webfileutil.electronFileCallback({
                 filename : obj.getFilename(),
                 title    : 'Select filename to save this to',
-                filters  : self.filters[obj.getObjectType],
+                filters  : self.filters[obj.getObjectType()] || 'NII',
                 save : true,
             },function(f) { self.saveItem(f,key1,key2); });
         }
@@ -647,11 +653,11 @@ class MisacTool extends HTMLElement {
                            parent : footer,
                            callback : function(f) {
                                            self.saveSetup(f);
-                                       }
+                           }
                                      },{
                                          filters:  [ { name: 'Setup Files', extensions: ['misac' ]}],
-                                 title    : 'Select the file to save to',
-                                 save : true,
+                                         title    : 'Select the file to save to',
+                                         save : true,
                                          suffix : "",
                                      });
     }

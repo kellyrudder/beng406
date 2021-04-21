@@ -456,6 +456,27 @@ ${elec.values.length}`;
         });
     }
 
+    transformElectrodes(xform,flipx=false,flipy=false,widthmm=256.0,heightmm=256.0) {
+        
+        let numgrids=this.data.numgrids;
+        for (let i=0;i<numgrids;i++) {
+            let grid=this.data.grids[i];
+            let nelec=grid.electrodes.length;
+            for (let j=0;j<nelec;j++) {
+                let electrode=this.getElectrode(i,j);
+                if (flipx) 
+                    electrode.position[0]= widthmm-electrode.position[0];
+                if (flipy)
+                    electrode.position[1]= heightmm-electrode.position[1];
+            
+                let q=[0,0,0];
+                xform.transformPoint(electrode.position,q);
+                for (let k=0;k<=2;k++) 
+                    electrode.position[k]=q[k];
+            }
+        }
+    }
+    
 }
 
 

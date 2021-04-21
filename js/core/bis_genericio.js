@@ -38,6 +38,10 @@ const rimraf=biscoreio.getrimrafmodule();
 let fileServerClient=null;
 const inBrowser= biscoreio.getmode() === 'browser';
 
+const isInBrowser=function() {
+    return inBrowser;
+};
+
 /** Sets the file server object 
  * @alias BisGenericIO#setFileServerObject
  * @param {Object} obj - the server object
@@ -383,8 +387,6 @@ let moveDirectory=function(url) {
             if (err) { console.log('Encountered an error trying to move file', src, err); reject(false); return; }
             fs.unlink(src, (err) => {
                 if (err) { console.log('Encountered an error trying to delete', src, err); reject(false); return; }
-
-                console.log('Move file operation successful');
                 resolve(true);
             });
         });
@@ -413,6 +415,8 @@ let copyFile=function(url) {
     let splitNames = splitFilenames(url);
     let src = splitNames[0], dest = splitNames[1];
 
+    //console.log('Copying ',src,' to',dest);
+    
     // https://stackoverflow.com/questions/11293857/fastest-way-to-copy-file-in-node-js
     let rd = fs.createReadStream(src);
     let wr = fs.createWriteStream(dest);
@@ -604,81 +608,6 @@ let isSaveDownload =function() {
     return false;
 };
 
-
-/**
- * Runs DICOM file conversion through the fileserver. 
- * 
- * @param {Object} params - Parameter object for the file conversion. 
- * @param {String} params.inputDirectory - The input directory to run file conversions in. 
- * @param {Boolean} external - if true run as an external process
- */
-let runDICOMConversion = (params,external=false) => {
-
-    /*let updateFn = (obj) => {
-        console.log('update fn', obj);
-    };*/
-
-    return new Promise( (resolve, reject) => {
-        if (fileServerClient) {
-            fileServerClient.runModule('dicomconversion', params, external,console.log, true)
-                .then((obj) => {
-                    console.log('Conversion done', obj);
-                    resolve(obj);
-                }).catch((e) => { reject(e); });
-        } else {
-            reject('No fileserver defined, cannot run DICOM conversion');
-        }
-    });
-};
-
-/**
- * Runs the pipeline creation module through the file server
- * @param {Object} params - Parameters for the pipeline module 
- */
-let runPipelineModule = (params) => {
-    return new Promise( (resolve, reject) => {
-        if (fileServerClient) {
-            fileServerClient.runModule('pipeline', params, false, console.log, true)
-                .then( (obj) => {
-                    console.log('Pipeline module done', obj);
-                    resolve(obj);
-                }).catch( (e) => { reject(e); });
-        } else {
-            reject('No fileserver defined, cannot run pipeline');
-        }
-    });
-};
-
-/**
- * Makes a SHA256 checksum for a given image file. Currently only functional if a file server is specified.
- * Note that this function only works when calling from the web environment. Bisweb modules calculate their own checksums due to genericio not being directly compatible with modules.
- * 
- * @param {String} url - Filename of image to make checksum for.
- * @param {Boolean} external - if true run as an external process
- * @returns Promise that will resolve the checksum, or false if no file server client is specified.
- */
-let makeFileChecksum = (url,external=false ) => {
-
-    if (fileServerClient) {
-        return fileServerClient.runModule('makechecksum', { 'input' : url }, external );
-    } else if (inBrowser) {
-        console.log('Cannot perform makeFileChecksum without a file server client.');
-        return false;
-    } 
-
-    return new Promise( (resolve, reject) => {
-        read(url, true).then( (obj) => {
-            let hash = util.SHA256(obj.data);
-            //resolves data structure in an 'output' field for cross-compatibility with objects returned by the server
-            if (hash) { resolve( { 'output' : { 'hash' : hash, 'filename' : url } } ); }
-
-            reject(hash);
-        }).catch( (e) => {
-            reject(e);
-        });
-    });
-};
-
 /**
  * Splits a filename concatenated by the symbol '&&' into two names.
  * 
@@ -716,7 +645,7 @@ var readPartialDataFromStartOfFile=function(filename,end=1024) {
     console.log('++++ Reading '+filename+' end='+end+' gzip='+gzip);
     const gunzip = zlib.createGunzip();
     const bufs=[];
-    return new Promise( async (resolve,reject) => {
+    return new Promise( (resolve,reject) => {
         
         let readstream = fs.createReadStream(filename, {
             'start' : 0,
@@ -790,7 +719,9 @@ const bisgenericio = {
     readtextdatafromurl : biscoreio.readtextdatafromurl, // read from url
     readbinarydatafromurl : biscoreio.readbinarydatafromurl, // read from url
     getimagepath : biscoreio.getimagepath,
+    getElectronDialogFilename :  biscoreio.getElectronDialogFilename,
     // New functions internal to this
+    inBrowser : isInBrowser,
     setFileServerObject : setFileServerObject,
     getFileServerObject : getFileServerObject,
     readJSON : readJSON, // Gloabl ReadJSON
@@ -815,9 +746,6 @@ const bisgenericio = {
     getPathSeparator : getPathSeparator,
     //
     isSaveDownload : isSaveDownload,
-    runDICOMConversion : runDICOMConversion,
-    runPipelineModule : runPipelineModule,
-    makeFileChecksum : makeFileChecksum,
     //
     readPartialDataFromStartOfFile : readPartialDataFromStartOfFile
 };

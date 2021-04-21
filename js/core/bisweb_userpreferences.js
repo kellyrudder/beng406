@@ -33,8 +33,6 @@ let count=1;
  * The internal user preferences Object
  * @alias biswebUserPreferences.userPreferences
  */
-
- //TODO: Rename favoriteFolders to localFolders? S3 now maintains a separate cached list of favorite folders from the server 
 const userPreferences = {
     orientationOnLoad : 'None',
     snapshotscale : 2,
@@ -45,6 +43,7 @@ const userPreferences = {
     s3Folders : [],
     internal : false,
     darkmode : true,
+    species  : 'all',
     enables3 : false,
 };
 
@@ -107,7 +106,7 @@ let parseUserPreferences=function(obj) {
         userPreferences['showwelcome']=true;
 
     if (externals['environment'] === 'browser')
-        console.log('---- Loaded userPreferences');//,JSON.stringify(userPreferences));
+        console.log('++++ Loaded userPreferences');//,JSON.stringify(userPreferences));
     
     return true;
 };
@@ -261,7 +260,7 @@ expobj.safeGetImageOrientationOnLoad=function() {
  * @param {String} filename - the current filename or ${HOME}/.bisweb
  * @returns {Promise} - if successful
  */
-expobj.saveUserPreferences=function(fname=null) {
+expobj.saveUserPreferences=function(fname=null,silent=false) {
     
     if (fname === null) 
         fname=getDefaultFileName();
@@ -271,7 +270,8 @@ expobj.saveUserPreferences=function(fname=null) {
     const fs = externals['fs'];
 
     try {
-        console.log('Saving user preferences in ',fname);
+        if (!silent)
+            console.log('++++ Saving user preferences in ',fname);
         fs.writeFileSync(fname,opt);
     } catch(e) {
         console.log('Error=',e);
@@ -395,7 +395,7 @@ expobj.setItem=function(key,value,save=false) {
 // Load ${HOME}/.bisweb
 // ------------------------------------------------------------------------------
 
-let initializeCommandLine=function(silent=false) {
+let initializeCommandLine=function(silent=true) {
 
     if (expobj.initialized)
         return;
@@ -410,10 +410,11 @@ let initializeCommandLine=function(silent=false) {
             console.log(',,,,');
         }
     } else {
-        console.log(',,,, Failed to read user preferences from default location');
+        if (!silent)
+            console.log(',,,, Failed to read user preferences from default location');
         expobj.setImageOrientationOnLoad(userPreferences['orientationOnLoad'],null);
         fname=getDefaultFileName();
-        if (expobj.saveUserPreferences(fname)) {
+        if (expobj.saveUserPreferences(fname,silent)) {
             if (!silent) {
                 console.log(',,,, \t created and saved user preferences in ',fname);
                 console.log(',,,,');

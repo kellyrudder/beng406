@@ -28,7 +28,7 @@ const sysutils = require('bis_filesystemutils.js');
 const bis_util = require('bis_util.js');
 const bis_commandlineutils = require('bis_commandlineutils.js');
 const bis_genericio = require('bis_genericio.js');
-const BidsModule = require('./bis_bidsmodule.js');
+const BidsModule = require('bidsmodule.js');
 const path = bis_genericio.getpathmodule();
 const fs = bis_genericio.getfsmodule();
 const os = bis_genericio.getosmodule();
@@ -65,7 +65,7 @@ class DicomModule extends BaseModule {
                     "description": "Input directory for the DICOM conversion",
                     "advanced": true,
                     "type": "string",
-                    "varname": "inputDirectory",
+                    "varname": "inputdirectory",
                     "shortname" : "i",
                     "default": ""
                 },
@@ -75,7 +75,7 @@ class DicomModule extends BaseModule {
                     "advanced": true,
                     "required": false,
                     "type": "string",
-                    "varname": "outputDirectory",
+                    "varname": "outputdirectory",
                     "shortname" : "o",
                     "default": ""
                 },
@@ -158,7 +158,7 @@ class DicomModule extends BaseModule {
         console.log('oooo invoking: dicommodule with vals', JSON.stringify(vals));
 
         // -------------------- Check Directories and create as needed --------------------
-        let indir = vals.inputDirectory, outdir = vals.outputDirectory, tmpdir = null;
+        let indir = vals.inputdirectory, outdir = vals.outputdirectory, tmpdir = null;
         let fixpaths = super.parseBoolean(vals.fixpaths);
         if (path.sep !== '\\')
             fixpaths=false;
@@ -169,6 +169,7 @@ class DicomModule extends BaseModule {
         
         if (fixpaths)  {
             indir = bis_util.filenameUnixToWindows(indir);
+            console.log('New in dir=',indir);
         }
         
         // Input directory
@@ -178,11 +179,12 @@ class DicomModule extends BaseModule {
         
         // Output Directory
         // --------------------------------------------
-        let outdir2 = outdir;
-        if (fixpaths)
-            outdir2=bis_util.filenameUnixToWindows(outdir);
+        if (fixpaths) {
+            outdir=bis_util.filenameUnixToWindows(outdir);
+            console.log('New outdir=',outdir);
+        }
         
-        if (!sysutils.validateFilename(outdir2)) 
+        if (!sysutils.validateFilename(outdir)) 
             return Promise.reject('Bad output directory '+outdir);
 
         // Create this
@@ -190,30 +192,31 @@ class DicomModule extends BaseModule {
             fs.mkdirSync(outdir);
         } catch (e) {
             if (e.code !== 'EEXIST') {
+                console.log(e);
                 return Promise.reject('Failed to create output directory ' + outdir);
+            } else {
+                console.log('+++ Directory ',outdir,'exists');
             }
         }
 
         
         // Temp Dir 
         // --------------------------------------------
+        tmpdir = path.join(sysutils.tempdir, 'dicom_' + Date.now());
+        console.log('.... dicommodule using temporary directory=',tmpdir);
         
-        if (vals.convertbids) { 
-            tmpdir = path.join(sysutils.tempdir, 'dicom_' + Date.now());
-
-            try {
-                fs.mkdirSync(tmpdir);
-            } catch (e) {
-                if (e.code !== 'EEXIST') {
-                    return Promise.reject('Failed to create temporary directory ' + tmpdir);
-                }
+        try {
+            fs.mkdirSync(tmpdir);
+        } catch (e) {
+            if (e.code !== 'EEXIST') {
+                return Promise.reject('Failed to create temporary directory ' + tmpdir);
             }
         }
 
         // Now all systems go
         // ----------------------------------------------------------------------------
 
-        return new Promise( async (resolve,reject) => { 
+        let internal_fn=( async () => {
 
             // TODO add the listen method from outside somehow
             // So if it exists it sends update to browser
@@ -222,41 +225,94 @@ class DicomModule extends BaseModule {
               };*/
             
             let dcm2nii = await this.getdcm2niibinary();
-            let cmd = dcm2nii + ' -z y ' + ' -o ' + (vals.convertbids ?  tmpdir : outdir) + ' -ba y -c bisweb ' + indir;
-            console.log('.... executing :'+cmd+'\n....');
 
+            let cmd = dcm2nii + ` -z y -f "%i__%p__%t__%s"` + ' -o ' + tmpdir + ' -ba y -c bisweb ' + indir;
+            console.log('.... executing :'+cmd+'\n....');
+            
             try { 
                 let m = await bis_commandlineutils.executeCommandAndLog(cmd, process.cwd());
                 if (bis_genericio.getmode() !== 'node' )
                     console.log(m);
-            } catch(e) {
-                reject(e);
-                return false;
-            }
                 
+            } catch(e) {
+                return Promise.reject(e);
+            }
+
             if (vals.convertbids) {
+                
                 let bidsmodule = new BidsModule();
                 console.log('converting to bids...');
                 let bidsoutput=null;
                 try {
-                    bidsoutput = await bidsmodule.directInvokeAlgorithm({ 'inputDirectory' : tmpdir,
-                                                                          'outputDirectory' : outdir,
+                    bidsoutput = await bidsmodule.directInvokeAlgorithm({ 'inputdirectory' : tmpdir,
+                                                                          'outputdirectory' : outdir,
                                                                           'dcm2nii' : true});
                 } catch(e) {
                     console.log('Bids conversion error',e);
-                    reject(e);
+                    return Promise.reject(e);
                 } finally {
                     console.log('....\n.... removing temporary directory = '+tmpdir);
                     await bis_genericio.deleteDirectory(tmpdir);
                 }
+
                 console.log('.... all done (bids), returning output path = '+outdir);
-                resolve(bidsoutput);
-                return true;
+                return Promise.resolve(bidsoutput);
             }
-            console.log('.... all done (no bids), returning output path = '+outdir);
-            resolve(outdir);
-            return true;
+
+            let outlist=[];
+            
+            //reformat file list for non-bids save
+            let fileList = await bis_genericio.getMatchingFiles(tmpdir + '/*');
+            let filePromiseArray = [];
+            
+            console.log('____dicom finished file list=\n___\t'+fileList.join('\n___\t'));
+            for (let item of fileList) {
+                let splitItem = bis_genericio.getBaseName(item).split(/__/);
+                
+                //split off file extension and zero pad the run number
+                //some run numbers have an additional part after the run number, so split that off too.
+                let splitRunNumber = splitItem[3].split('.'), splitBasename = splitRunNumber[0].split('_');
+                if (parseInt(splitBasename[0]) < 10) {
+                    splitBasename[0] = '0' + splitBasename[0];
+                    splitRunNumber[0] = splitBasename.join('_');
+                    splitItem[3] = splitRunNumber.join('.');
+                }
+                splitItem.splice(2, 1);
+                
+                let baseNewFilename = splitItem.join('_'), newFilename = outdir + path.sep + baseNewFilename;
+                let promise = bis_genericio.copyFile(`${item}&&${newFilename}`);
+                filePromiseArray.push(promise);
+                outlist.push(newFilename);
+            }
+
+            return new Promise( (resolve,reject) => {
+                Promise.all(filePromiseArray).then(() => {
+                    console.log('.... all done (no bids), returning output path = ' + outdir);
+                    console.log('....\n.... removing temporary directory = ' + tmpdir);
+                    bis_genericio.deleteDirectory(tmpdir).then(() => {
+                        resolve(outlist);
+                        return;
+                    }).catch( (e) => {
+                        console.log('An error occured during the dicom conversion process', e);
+                        reject(e);
+                        return;
+                    });
+                }).catch((e) => {
+                    console.log('An error occured during the dicom conversion process', e);
+                    reject(e);
+                    return;
+                });
+            });
         });
+
+        return new Promise( (resolve,reject) => {
+            internal_fn().then( (m) => {
+                resolve(m);
+            }).catch( (e)=> {
+                reject(e);
+            });
+        });
+
     }
 }
 

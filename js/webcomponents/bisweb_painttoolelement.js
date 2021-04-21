@@ -15,15 +15,12 @@
  
  ENDLICENSE */
 
-/* global window,setTimeout,document,HTMLElement */
-
 "use strict";
 
 const dat = require('bisweb_datgui');
 const util=require('bis_util');
 const bisweb_image = require('bisweb_image');
 const UndoStack=require('bis_undostack');
-const imagealgo=require('bis_imagealgorithms');
 const webutil=require('bis_webutil');
 const $=require('jquery');
 const bootbox=require('bootbox');
@@ -40,6 +37,7 @@ const BisWebPanel = require('bisweb_panel.js');
 const NUMBUTTONS = [ 7, 30];
 const NUMFIRST   = [ 0, 5 ];
 const SHIFTS = [ [ 1,0,0], [-1,0,0], [0,1,0], [0,-1,0] , [ 0,0,1],[0,0,-1]];
+
 
 
 /**
@@ -102,10 +100,9 @@ class PaintToolElement extends HTMLElement {
             thresholdcheck : null,
             connectcheck : null,
             datgui : null,
-            regdatgui : null,
-            regularizemodal : null,
             minthreshold : null,
             maxthreshold : null,
+            brushscale : null,
 
             data : {
                 enabled : false,
@@ -116,11 +113,6 @@ class PaintToolElement extends HTMLElement {
                 brushsize : 3,
                 minth : 1.0,
                 maxth : 10.0,
-
-                reg_iter : 4,
-                reg_smoothness :  2.0,
-                reg_convergence : 0.1,
-
             },
 
             algoController : null,
@@ -131,19 +123,17 @@ class PaintToolElement extends HTMLElement {
             thresholdModule : null,
             defaceModule : null,
             internalUpdate : false,
+            moduleDictionary : {},
         };
 
     }
 
     connectedCallback() {
 
+
         let viewerid=this.getAttribute('bis-viewerid');
         let layoutid=this.getAttribute('bis-layoutwidgetid');
-        let algoid=this.getAttribute('bis-algorithmcontrollerid') || null;
-
-        this.internal.algocontroller=null;
-        if (algoid !== null) 
-            this.internal.algocontroller = document.querySelector(algoid) || null;
+        
         
         let in_orthoviewer=document.querySelector(viewerid);
 
@@ -156,6 +146,10 @@ class PaintToolElement extends HTMLElement {
                                        'permanent' : true,
                                        'width' : '300px'
                                    });
+
+        this.internal.algocontroller = document.createElement('bisweb-simplealgorithmcontrollerelement');
+        this.internal.algocontroller.setAttribute('bis-viewerid',viewerid);
+        this.appendChild(this.internal.algocontroller);
         
             
         $(this.panel.widget).attr('aria-label', 'bisweb-paint-widget');
@@ -202,6 +196,20 @@ class PaintToolElement extends HTMLElement {
     /** function to update gui after internal operations
      */
     updategui() {
+
+        // updategui
+        if (this.internal.enablecheck) {
+            this.internal.enablecheck.prop("checked",this.internal.data.enabled);
+            this.internal.overwritecheck.prop("checked",this.internal.data.overwrite);
+            this.internal.threedcheck.prop("checked",this.internal.data.threed);
+            this.internal.thresholdcheck.prop("checked",this.internal.data.threshold);
+            this.internal.connectcheck.prop("checked",this.internal.data.connect);
+            this.internal.minthreshold.updateDisplay();
+            this.internal.maxthreshold.updateDisplay();
+            this.internal.brushscale.updateDisplay();
+            this.enableEdit(this.internal.data.enabled);
+        }
+        
     }
 
     // --------------------------------------------------------------------------------
@@ -409,93 +417,6 @@ class PaintToolElement extends HTMLElement {
     }
 
     // --------------------------------------------------------------------------------
-    // Smooth Operations ...
-    // --------------------------------------------------------------------------------
-    /** Perfor  objectmap regularization -- gets values from popup dialog */
-    smoothoperation() {
-
-        var vol = imagealgo.regularizeObjectmap(this.internal.objectmap,
-                                                this.internal.reg_iter,
-                                                this.internal.data.reg_smoothness,
-                                                this.internal.data.reg_convergence);
-
-
-        var newdata=vol.getImageData();
-        var l=newdata.length;
-        this.internal.currentundoarray = [] ;
-        var numchanges=0.0;
-        for (var i=0;i<l;i++) {
-            if (this.internal.objectmapdata[i]!=newdata[i]) {
-                this.internal.currentundoarray.push( i,newdata[i],this.internal.objectmapdata[i]);
-                this.internal.objectmapdata[i]=newdata[i];
-                ++numchanges;
-            }
-        }
-        this.internal.undostack.addOperation(this.internal.currentundoarray);
-
-        var per=util.scaledround( (100.0*numchanges/l),100.0);
-        webutil.createAlert("Objectmap Regularized "+per+"% voxels changed");
-
-        const self=this;
-
-        setTimeout(function() {
-            self.internal.orthoviewer.updateobjectmapdisplay();
-        },1);
-
-        return false;
-    }
-
-
-    /** Pops up modal to obtain parameters for objectmap regularization and if "OK" calls smoothoperation */
-    smoothoperationyesno () {
-
-        if (this.internal.objectmap===null) {
-            webutil.createAlert('No objectmap in memory!',true);
-            return;
-        }
-
-
-        if (this.internal.regularizemodal===null) {
-
-            var f2 = new dat.GUI({autoPlace: false});
-            f2.add(this.internal.data, 'reg_smoothness',[ 1.0,2.0,4.0,8.0,16.0,32.0 ]).name("Smoothness");
-            f2.add(this.internal.data, 'reg_iter', [ 1,2,4,8,12,16]).name("Iterations");
-            f2.add(this.internal.data, 'reg_convergence', [0.05,0.1,0.2,0.4 ]).name("Convergence");
-
-            this.internal.regularizemodal=webutil.createmodal("Regularize Objectmap Properties","modal-sm");
-            this.internal.regularizemodal.body.append(f2.domElement);
-            webutil.removedatclose(f2);
-            this.internal.regularizemodal.close.prop('textContent','Cancel');
-
-            const self=this;
-            let clb=function(e) {
-                e.preventDefault(); // cancel default behavior
-                webutil.enablebutton(self.internal.regularizemodal.close, false);
-                webutil.enablebutton(self.internal.regularizemodal.exec,false);
-                var alert = $("<div class=\"alert alert-info\" role=\"alert\">Regularizing objectmap. See Javascript console for print output.</div>");
-                self.internal.regularizemodal.body.append(alert);
-                setTimeout(function() {
-                    self.smoothoperation();
-                    self.internal.regularizemodal.dialog.modal('hide');
-                    alert.remove();
-                    webutil.enablebutton(self.internal.regularizemodal.close,true);
-                    webutil.enablebutton(self.internal.regularizemodal.exec,true);
-                },10);
-            };
-
-
-            this.internal.regularizemodal.exec=
-                webutil.createbutton({ type : "danger",
-                                       name : "Smooth Objectmap",
-                                       parent : this.internal.regularizemodal.footer}).click(clb);
-
-        }
-
-        this.internal.regularizemodal.dialog.modal('show');
-        return;
-    }
-
-    // --------------------------------------------------------------------------------
     // Load & Save Objectmap
     // --------------------------------------------------------------------------------
     /** Save objectmap to a file */
@@ -548,12 +469,10 @@ class PaintToolElement extends HTMLElement {
                 self.internal.objectmap=in_objmap;
                 self.internal.objectmapdata=self.internal.objectmap.getImageData();
                 self.internal.settingviewer=true;
-                console.log('objectmap loaded',self.internal.objectmap.getDescription());
                 self.setViewerObjectmap(in_objmap,true,"Objectmap");
                 self.internal.settingviewer=false;
                 self.resetundo();
                 self.updategui();
-                self.setObjectmapOpacity(0.8);
                 resolve('all set');
             },1);
         });
@@ -575,6 +494,8 @@ class PaintToolElement extends HTMLElement {
         }
         if (infile.length<2)
             return;
+
+        //        console.log('Loading objectmap',evt);
         
         let img=new bisweb_image();
         img.load(infile)
@@ -758,7 +679,7 @@ class PaintToolElement extends HTMLElement {
                                                          });
 
         const ov_clb=function(sel) { self.internal.data.overwrite=sel; };
-
+        
         this.internal.overwritecheck=webutil.createcheckbox({name : 'Overwrite',
                                                              checked : this.internal.data.overwrite,
                                                              parent : sbar,
@@ -808,7 +729,7 @@ class PaintToolElement extends HTMLElement {
         var f1 = new dat.GUI({autoPlace: false});
         basediv.append(f1.domElement);
         var c1=f1.addFolder('Brush Parameters');
-        c1.add(this.internal.data,'brushsize',1,25).name("Brush Size").step(1);
+        this.internal.brushscale=c1.add(this.internal.data,'brushsize',1,25).name("Brush Size").step(1);
 
 
         var r=this.internal.volume.getIntensityRange();
@@ -824,8 +745,6 @@ class PaintToolElement extends HTMLElement {
         webutil.removedatclose(f1);
 
 
-        var cmap=util.objectmapcolormap;
-
         var modal=webutil.createmodal("Select Object/Color");
         this.internal.selectcolormodal=modal.dialog;
 
@@ -834,12 +753,11 @@ class PaintToolElement extends HTMLElement {
             self.colorbuttonpressed(e);
         };
 
-
         for (var pass=0;pass<=1;pass++) {
 
             var min=NUMFIRST[pass];
             for (var i=min;i<NUMBUTTONS[pass]+min;i++) {
-                var cl = [ cmap[i][0], cmap[i][1],cmap[i][2] ];
+                var cl = util.getobjectmapcolor(i);
                 var hexcolor = util.rgbToHex(cl[0],cl[1],cl[2]);
                 for (var k=0;k<=2;k++) {
                     if (cl[k]<128)
@@ -848,6 +766,7 @@ class PaintToolElement extends HTMLElement {
                         cl[k]=0;
                 }
                 var hexcolor2 = util.rgbToHex(cl[0],cl[1],cl[2]);
+                
                 var name= ""+i;
                 var epar=elem1;
                 var attr=i;
@@ -1043,7 +962,7 @@ class PaintToolElement extends HTMLElement {
                                          suffix : 'NII',
                                        });
 
-        let save_clb=function(f) { console.log(f); self.saveobjectmap(f);};
+        let save_clb=function(f) { self.saveobjectmap(f);};
 
         webfileutil.createFileMenuItem(parent,'Save Objectmap',
                                        function(f) {  save_clb(f);},
@@ -1076,79 +995,81 @@ class PaintToolElement extends HTMLElement {
         };
 
 
-        if (this.internal.algocontroller) {
-            
-            const self=this;
-            this.internal.algocontroller.sendImageToViewer=function(input,options) {
-                let type = options.viewersource || 'image';
-                if (type==='overlay') {
-                    self.safeSetNewObjectmap(input).catch( (e) => {
-                        webutil.createAlert(e,true);
-                    });
-                } else {
-                    self.internal.orthoviewer.setimage(input);
-                        self.setObjectmapOpacity(0.5);
-                }
-            };
-            
-            let moduleoptions = { 'numViewers' : 0,
-                                  'dual' : false ,
-                                };
-            
-            moduleoptions.name='Create Objectmap';
-            this.internal.thresholdModule=biscustom.createCustom(this.internal.layoutcontroller,
-                                                                 this.internal.algocontroller,
-                                                                 modules.getModule('binaryThresholdImage'),
-                                                                 moduleoptions);
+        this.internal.algocontroller.sendImageToViewer=function(input,options) {
+            let type = options.viewersource || 'image';
+            if (type==='overlay') {
+                self.safeSetNewObjectmap(input).catch( (e) => {
+                    webutil.createAlert(e,true);
+                });
+            } else {
+                self.internal.orthoviewer.setimage(input);
+                self.setObjectmapOpacity(0.5);
+            }
+        };
+        
+        let moduleoptions = { 'numViewers' : 0,
+                              'dual' : false ,
+                            };
+        
+        moduleoptions.name='Create Objectmap';
+        this.internal.thresholdModule=biscustom.createCustom(this.internal.layoutcontroller,
+                                                             this.internal.algocontroller,
+                                                             modules.getModule('binaryThresholdImage'),
+                                                             moduleoptions);
+        this.internal.moduleDictionary['thresholdModule']=this.internal.thresholdModule;
+        webutil.createMenuItem(tmenu, moduleoptions.name,function() {
+            self.internal.thresholdModule.show();
+        });
+        
+        
+        
+        if(window.bioimagesuitewasmpack.usesgpl) {
+            moduleoptions.name='Deface Head Image';
+            let mod=modules.getModule('defaceImage');
+            mod.outputmask=true;
+            this.internal.defaceModule=biscustom.createCustom(this.internal.layoutcontroller,
+                                                              this.internal.algocontroller,
+                                                              mod,
+                                                              moduleoptions);
+            this.internal.moduleDictionary['defaceModule']=this.internal.defaceModule;
             webutil.createMenuItem(tmenu, moduleoptions.name,function() {
-                self.internal.thresholdModule.show();
+                self.internal.defaceModule.show();
+            });
+            webutil.createMenuItem(tmenu,'');
+            
+            moduleoptions.name='Morphology Operations';
+            this.internal.morphologyModule=biscustom.createCustom(this.internal.layoutcontroller,
+                                                                  this.internal.algocontroller,
+                                                                  modules.getModule('morphologyFilter'),
+                                                                  moduleoptions);
+            this.internal.moduleDictionary['morphologyModule']=this.internal.morphologyModule;
+            webutil.createMenuItem(tmenu, moduleoptions.name, () => {
+                self.internal.morphologyModule.show();
             });
             
-            
-            
-            if(window.bioimagesuitewasmpack.usesgpl) {
-                moduleoptions.name='Deface Head Image';
-                let mod=modules.getModule('defaceImage');
-                mod.outputmask=true;
-                this.internal.defaceModule=biscustom.createCustom(this.internal.layoutcontroller,
+            moduleoptions.name='Regularize Objectmap';
+            this.internal.regularizeModule=biscustom.createCustom(this.internal.layoutcontroller,
                                                                   this.internal.algocontroller,
-                                                                  mod,
+                                                                  modules.getModule('regularizeObjectmap'),
                                                                   moduleoptions);
-                webutil.createMenuItem(tmenu, moduleoptions.name,function() {
-                    self.internal.defaceModule.show();
-                });
-                webutil.createMenuItem(tmenu,'');
-                
-                moduleoptions.name='Morphology Operations';
-                this.internal.morphologyModule=biscustom.createCustom(this.internal.layoutcontroller,
-                                                                      this.internal.algocontroller,
-                                                                      modules.getModule('morphologyFilter'),
-                                                                      moduleoptions);
-                webutil.createMenuItem(tmenu, moduleoptions.name, () => {
-                    self.internal.morphologyModule.show();
-                });
-                
-                moduleoptions.name='Regularize Objectmap';
-                this.internal.regularizeModule=biscustom.createCustom(this.internal.layoutcontroller,
-                                                                      this.internal.algocontroller,
-                                                                      modules.getModule('regularizeObjectmap'),
-                                                                      moduleoptions);
-                webutil.createMenuItem(tmenu, moduleoptions.name,function() {
-                    self.internal.regularizeModule.show();
-                });
-                
-                webutil.createMenuItem(tmenu,'');
-                moduleoptions.name='Mask Image';
-                this.internal.maskModule=biscustom.createCustom(this.internal.layoutcontroller,
-                                                                this.internal.algocontroller,
-                                                                modules.getModule('maskImage'),
-                                                                moduleoptions);
-                    webutil.createMenuItem(tmenu, moduleoptions.name,function() {
-                        self.internal.maskModule.show();
-                    });
-            }
+            this.internal.moduleDictionary['regularizeModule']=this.internal.regularizeModule;
+            webutil.createMenuItem(tmenu, moduleoptions.name,function() {
+                self.internal.regularizeModule.show();
+            });
+            
+            webutil.createMenuItem(tmenu,'');
+            moduleoptions.name='Mask Image';
+            this.internal.maskModule=biscustom.createCustom(this.internal.layoutcontroller,
+                                                            this.internal.algocontroller,
+                                                            modules.getModule('maskImage'),
+                                                            moduleoptions);
+            this.internal.moduleDictionary['maskModule']=this.internal.maskModule;
+            webutil.createMenuItem(tmenu, moduleoptions.name,function() {
+                self.internal.maskModule.show();
+            });
         }
     }
+
 
     setViewerObjectmap(vol,plainmode,alert) {
         if (alert !== false)
@@ -1162,6 +1083,64 @@ class PaintToolElement extends HTMLElement {
                 webutil.createAlert(e,true);
         });
     }
+
+
+        // -------------------------------------------------------------
+    /** Element State stuff */
+    
+    getElementState() {
+
+        const obj={
+            'modules' : {
+            }
+        };
+
+        if (this.panel)
+            obj['panelState']=this.panel.getElementState();
+        else
+            obj['panelState']=null;
+        
+        obj['paintData']=JSON.parse(JSON.stringify(this.internal.data));
+        
+        let keys=Object.keys(this.internal.moduleDictionary);
+        for (let i=0;i<keys.length;i++) {
+            let key=keys[i];
+            let module=this.internal.moduleDictionary[key];
+            if (module) {
+                obj['modules'][key] = module.getElementState();
+            }
+        }
+        return obj;
+    }
+
+    setElementState(dt=null) {
+
+        if (!dt)
+            return;
+
+        if (this.panel)
+            this.panel.setElementState(dt['panelState']);
+
+        const modules_out=dt['modules'];
+        const names=Object.keys(modules_out);
+
+        for (let i=0;i<names.length;i++) {
+            const name=names[i];
+            const current=this.internal.moduleDictionary[name] || null;
+            if (current) {
+                current.setElementState(modules_out[name]);
+            } 
+        }
+
+        if (dt['paintData']) {
+            let keys=Object.keys(dt['paintData']);
+            for (let i=0;i<keys.length;i++) {
+                this.internal.data[keys[i]]=dt['paintData'][keys[i]];
+            }
+            this.updategui();
+        }
+    }
+
 }
 
 webutil.defineElement('bisweb-painttoolelement', PaintToolElement);

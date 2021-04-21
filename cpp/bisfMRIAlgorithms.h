@@ -39,7 +39,7 @@ namespace bisfMRIAlgorithms {
    * @param num_tasks Number of Tasks (last N columns of regressor matrix, first columns are drift, nuisance terms);
    * @returns the 4D beta map image
    */
-  std::unique_ptr<bisSimpleImage<float> > computeGLM(bisSimpleImage<float>* input,bisSimpleImage<unsigned char>* mask,bisSimpleMatrix<float>* regressorMatrix,int num_tasks);
+  bisSimpleImage<float>* computeGLM(bisSimpleImage<float>* input,bisSimpleImage<unsigned char>* mask,bisSimpleMatrix<float>* regressorMatrix,int num_tasks);
 
   /** Computes legendre polynomial of order in range 0 to 6.
    * @param t the input value
@@ -76,7 +76,23 @@ namespace bisfMRIAlgorithms {
    * @return 1 if success, 0 if fail
    */
   int butterworthFilter(Eigen::MatrixXf& input,Eigen::MatrixXf& output,Eigen::VectorXf& w,Eigen::MatrixXf& temp,
-			std::string passType,float frequency,float sampleRate,int debug);
+                        std::string passType,float frequency,float sampleRate,int debug);
+
+
+  /** Performs high or low pass butterworth filtration on images
+   * @param input the input timeseries matrix (rows=frame)
+   * @param output the input timeseries matrix (rows=frame)
+   * @param w the weight vector  (BINARY here if > 0.5 use, else ignore)
+   * @param temp  a temporary matrix
+   * @param passType the filter type either "low" or "high"
+   * @param frequency  cuttoff frequency in Hz
+   * @param sampleRate Data TR (TR = Time of repetition)
+   * @param removeMean  (if > 0 removeMean of time series before filtering)
+   * @param debug  if > 0 print filter characteristics
+   * @return 1 if success, 0 if fail
+   */
+  int butterworthFilterImage(bisSimpleImage<float>* input,bisSimpleImage<float>* output,
+                             std::string passType,float frequency,float sampleRate,int removeMean,int debug);
 
 
 
@@ -146,7 +162,14 @@ namespace bisfMRIAlgorithms {
    * @returns {Matrix} seed map image
    */
   int computeSeedMapImage(bisSimpleImage<float>* input,Eigen::MatrixXf& roi,int toz,Eigen::VectorXf& weights,bisSimpleImage<float>* output);
-  
+
+  /** This function normalizes a time series image to have unit magnitude and zero mean for each voxel
+   * @alias BisfMRIMatrixConnectivity.normalizeTimeSeriesImage
+   * @param {Image} input - the input timeseries  image
+   * @param {Image} output - the normalized timeseries  image
+   */
+  int normalizeTimeSeriesImage(bisSimpleImage<float>* input,bisSimpleImage<float>* output);
+
 }
 
 
