@@ -23,7 +23,7 @@
     <kelly-newcomponent viewerid="#viewer" layoutmanager="#layout"></kelly-newcomponent>
     */
     // -------------------------------------------------------------------------
-    class FilterOptions extends HTMLElement {
+    class SubmitFilters extends HTMLElement {
     
         constructor() {
             super(); // Initializes the parent class
@@ -46,7 +46,7 @@
             let layoutcontroller=document.querySelector(layoutid);
             
             this.panel=new BisWebPanel(layoutcontroller,
-                                       {  name  : "Filtering Options",
+                                       {  name  : "Verify and Run",
                                           permanent : true,
                                           width : '290',
                                           dual : false,
@@ -55,29 +55,13 @@
     
             const html=`
     
-    <H4>Select Filters</H4>
-    Select which features you would like to search for. 
+    <H4>Verify Filtering Information</H4>
+    Please verify the below information is correct before running tumor identification. 
 
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Demographic Information
-        </label>
+    <div> 
+        <button type="button" class="btn btn-success">Run</button>
+        <button type="button" class="btn btn-danger">Cancel</button>
     </div>
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Quanitative Features 
-        </label>
-    </div>
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Qualitative Features
-        </label>
-    </div>
-
-    <button type="button" class="btn btn-success">Next</button>
     
     `;  
     
@@ -100,5 +84,5 @@
         }
     }
     
-    module.exports=FilterOptions;
-    webutil.defineElement('tumor-filters', FilterOptions);
+    module.exports=SubmitFilters;
+    webutil.defineElement('submit-filters', SubmitFilters);

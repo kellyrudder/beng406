@@ -23,7 +23,7 @@
     <kelly-newcomponent viewerid="#viewer" layoutmanager="#layout"></kelly-newcomponent>
     */
     // -------------------------------------------------------------------------
-    class FilterOptions extends HTMLElement {
+    class DemographicFilters extends HTMLElement {
     
         constructor() {
             super(); // Initializes the parent class
@@ -46,7 +46,7 @@
             let layoutcontroller=document.querySelector(layoutid);
             
             this.panel=new BisWebPanel(layoutcontroller,
-                                       {  name  : "Filtering Options",
+                                       {  name  : "Demographic Information",
                                           permanent : true,
                                           width : '290',
                                           dual : false,
@@ -55,31 +55,42 @@
     
             const html=`
     
-    <H4>Select Filters</H4>
+    <H4>Enter Demographic Information</H4>
     Select which features you would like to search for. 
 
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Demographic Information
-        </label>
+    <div>                       
+        Age: <input type="number" id="ageNumber" min="0" step="1" data-bind="value:replyNumber" />
     </div>
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Quanitative Features 
-        </label>
+    <div>                       
+        Weight: <input type="number" id="weightNumber" min="0" step="1" data-bind="value:replyNumber" />
     </div>
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Qualitative Features
-        </label>
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle btn-block" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Sex
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+            <li><a class="dropdown-item" href="#">Male</a></li>
+            <li><a class="dropdown-item" href="#">Female</a></li>
+            <li><a class="dropdown-item" href="#">Other</a></li>
+        </ul>
+    </div>
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle btn-block" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Race
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+            <li><a class="dropdown-item" href="#">Asian</a></li>
+            <li><a class="dropdown-item" href="#">Black</a></li>
+            <li><a class="dropdown-item" href="#">Hispanic or Latino</a></li>
+            <li><a class="dropdown-item" href="#">Native Hawaiian or Other Pacific Islander</a></li>
+            <li><a class="dropdown-item" href="#">White</a></li>
+            <li><a class="dropdown-item" href="#">Other Enter Below</a></li>
+        </ul>
     </div>
 
     <button type="button" class="btn btn-success">Next</button>
     
-    `;  
+    `;  // Multiline string use ` delimiter '''
     
             this.parentDomElement.append(html);
             this.show();
@@ -100,5 +111,5 @@
         }
     }
     
-    module.exports=FilterOptions;
-    webutil.defineElement('tumor-filters', FilterOptions);
+    module.exports=DemographicFilters;
+    webutil.defineElement('demographic-filters', DemographicFilters);

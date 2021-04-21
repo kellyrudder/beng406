@@ -23,7 +23,7 @@
     <kelly-newcomponent viewerid="#viewer" layoutmanager="#layout"></kelly-newcomponent>
     */
     // -------------------------------------------------------------------------
-    class FilterOptions extends HTMLElement {
+    class FilterElement extends HTMLElement {
     
         constructor() {
             super(); // Initializes the parent class
@@ -79,7 +79,7 @@
 
     <button type="button" class="btn btn-success">Next</button>
     
-    `;  
+    `;  // Multiline string use ` delimiter '''
     
             this.parentDomElement.append(html);
             this.show();
@@ -100,5 +100,5 @@
         }
     }
     
-    module.exports=FilterOptions;
-    webutil.defineElement('tumor-filters', FilterOptions);
+    module.exports=FilterElement;
+    webutil.defineElement('filter-element', FilterElement);

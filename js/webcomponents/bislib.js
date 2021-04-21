@@ -36,6 +36,10 @@ require('bisweb_cardbar.js');
 require('bisweb_cpmelement.js');
 // BENG 406 added 
 require('bisweb_filteroptions.js');
+require('bisweb_demographicfilters.js');
+require('bisweb_regionidentifier.js');
+require('bisweb_submitfilters.js');
+require('bisweb_filterelement.js');
 
 
 const webutil = require('bis_webutil');

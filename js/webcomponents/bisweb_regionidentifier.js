@@ -23,7 +23,7 @@
     <kelly-newcomponent viewerid="#viewer" layoutmanager="#layout"></kelly-newcomponent>
     */
     // -------------------------------------------------------------------------
-    class FilterOptions extends HTMLElement {
+    class RegionIdentifier extends HTMLElement {
     
         constructor() {
             super(); // Initializes the parent class
@@ -46,7 +46,7 @@
             let layoutcontroller=document.querySelector(layoutid);
             
             this.panel=new BisWebPanel(layoutcontroller,
-                                       {  name  : "Filtering Options",
+                                       {  name  : "Quanitative Information",
                                           permanent : true,
                                           width : '290',
                                           dual : false,
@@ -55,27 +55,8 @@
     
             const html=`
     
-    <H4>Select Filters</H4>
-    Select which features you would like to search for. 
-
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Demographic Information
-        </label>
-    </div>
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Quanitative Features 
-        </label>
-    </div>
-    <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
-        <label class="form-check-label" for="flexCheckDefault">
-            Filter on Qualitative Features
-        </label>
-    </div>
+    <H4>Identify Tumor Regions of Importance</H4>
+    Use your cursor to circumscribe regions of importance on the image. 
 
     <button type="button" class="btn btn-success">Next</button>
     
@@ -100,5 +81,5 @@
         }
     }
     
-    module.exports=FilterOptions;
-    webutil.defineElement('tumor-filters', FilterOptions);
+    module.exports=RegionIdentifier;
+    webutil.defineElement('region-identifier', RegionIdentifier);
