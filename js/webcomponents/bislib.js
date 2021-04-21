@@ -34,6 +34,8 @@ require('bisweb_keylistener.js');
 require('bisweb_popoverhandler.js');
 require('bisweb_cardbar.js');
 require('bisweb_cpmelement.js');
+// BENG 406 added 
+require('bisweb_filteroptions.js');
 
 
 const webutil = require('bis_webutil');
