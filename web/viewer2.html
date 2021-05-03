@@ -71,7 +71,7 @@
   <br>
   <h1>Testing</h1>
 
-  <div id="filtercarousel" class="carousel slide" data-ride="carousel" data-interval="false" style="overflow: visible">
+  <div id="filtercarousel" class="carousel slide" data-ride="carousel" data-interval="false">
   
     <!-- Wrapper for slides -->
     <div class="carousel-inner">
@@ -80,75 +80,28 @@
         Select which features you would like to search for. 
 
         <div class="form-check">
-            <input class="form-check-input" type="checkbox" value="" id="demofilter">
+            <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
             <label class="form-check-label" for="flexCheckDefault">
                 Filter on Demographic Information
             </label>
         </div>
         <div class="form-check">
-            <input class="form-check-input" type="checkbox" value="" id="quantfilter">
+            <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
             <label class="form-check-label" for="flexCheckDefault">
                 Filter on Quanitative Features 
             </label>
         </div>
         <div class="form-check">
-            <input class="form-check-input" type="checkbox" value="" id="qualfilter">
+            <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
             <label class="form-check-label" for="flexCheckDefault">
                 Filter on Qualitative Features
             </label>
         </div>
 
-        <script>
-          var demoFilters = false;
-          var quantFilters = false;
-          var qualFilters = false;
-          function checkboxFilters() {
-            var demoCheckBox = document.getElementById("demofilter");
-            var quantCheckBox = document.getElementById("quantfilter");
-            var qualCheckBox = document.getElementById("qualfilter");
-            if (demoCheckBox.checked == true){
-              demoFilters = true;
-              document.getElementById("buttonNext").setAttribute('data-slide-to', "1");
-              //data-target="#filtercarousel" data-slide-to="2" href="#"
-            }
-            if (quantCheckBox.checked == true){
-              quantFilters = true;
-              if(demoFilters == false){
-                document.getElementById("buttonNext").setAttribute('data-slide-to', "2");
-              }
-            }
-            if (qualCheckBox.checked == true){
-              qualFilters = true;
-            }
-          }
-
-          function demoButtonExecute(){
-            if(quantFilters == true){
-              document.getElementById("demoNext").setAttribute('data-slide-to', "2");
-            }
-          }
-
-          function selectRace(selectedRace){
-            var caratButton = "<span class='caret'></span>";
-            document.getElementById("raceButton").innerHTML = "Race: " + selectedRace + caratButton;
-          }
-
-          function selectSex(selectedSex){
-            var caratButton = "<span class='caret'></span>";
-            document.getElementById("sexButton").innerHTML = "Sex: " + selectedSex + caratButton;
-          }
-
-          function resetFilters(){
-            demoFilters = false;
-            quantFilters = false;
-            qualFilters = false;
-          }
-        </script>
-
-        <button type="button" id="buttonNext" onclick="checkboxFilters()" class="btn btn-success" data-target="#filtercarousel" data-slide-to="3" href="#">Next</button>
+        <button type="button" class="btn btn-success">Next</button>
       </div>
 
-      <div class="item" style="text-align:center" id="demographicinfo">
+      <div class="item" style="text-align:center">
         <H4>Enter Demographic Information</H4>
         Select which features you would like to search for. 
 
@@ -158,42 +111,38 @@
         <div>                       
             Weight: <input type="number" id="weightNumber" min="0" step="1" data-bind="value:replyNumber" />
         </div>
-        <div class="btn-group dropdown">
-            <button class="btn btn-primary dropdown-toggle" id="sexButton" type="button" id="dropdownMenuButton" style="width:400px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 Sex
-                <span class="caret"></span></button>
+            </button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <li><a class="dropdown-item" href="#" onClick="selectSex('Male')">Male</a></li>
-                <li><a class="dropdown-item" href="#" onClick="selectSex('Female')">Female</a></li>
-                <li><a class="dropdown-item" href="#" onClick="selectSex('Other')">Other</a></li>
+                <li><a class="dropdown-item" href="#">Male</a></li>
+                <li><a class="dropdown-item" href="#">Female</a></li>
+                <li><a class="dropdown-item" href="#">Other</a></li>
             </ul>
         </div>
-        <br>
-        <div class="btn-group dropdown">
-            <button class="btn btn-primary dropdown-toggle" id="raceButton" type="button" id="dropdownMenuButton" style="width:400px" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 Race
-                <span class="caret"></span></button>
+            </button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <li><a class="dropdown-item" href="#" onClick="selectRace('Asian')">Asian</a></li>
-                <li><a class="dropdown-item" href="#" onClick="selectRace('Black')">Black</a></li>
-                <li><a class="dropdown-item" href="#" onClick="selectRace('Hispanic or Latino')">Hispanic or Latino</a></li>
-                <li><a class="dropdown-item" href="#" onClick="selectRace('Native Hawaiian or Other Pacific Islander')">Native Hawaiian or Other Pacific Islander</a></li>
-                <li><a class="dropdown-item" href="#" onClick="selectRace('White')">White</a></li>
-                <li><a class="dropdown-item" href="#" onClick="selectRace('Other Enter Below')">Other Enter Below</a></li>
+                <li><a class="dropdown-item" href="#">Asian</a></li>
+                <li><a class="dropdown-item" href="#">Black</a></li>
+                <li><a class="dropdown-item" href="#">Hispanic or Latino</a></li>
+                <li><a class="dropdown-item" href="#">Native Hawaiian or Other Pacific Islander</a></li>
+                <li><a class="dropdown-item" href="#">White</a></li>
+                <li><a class="dropdown-item" href="#">Other Enter Below</a></li>
             </ul>
         </div>
 
-        <br>
-
-        <button type="button" class="btn btn-success" id="demoNext" onClick="demoButtonExecute()" data-target="#filtercarousel" data-slide-to="3" href="#">Next</button>
+        <button type="button" class="btn btn-success">Next</button>
       </div>
   
-      <div class="item" style="text-align:center" id="quantitativefilter">
+      <div class="item" style="text-align:center">
         <H4>Identify Tumor Regions of Importance</H4>
-        <p>Use your cursor to circumscribe regions of importance on the image. </p>
-        <br>
+        Use your cursor to circumscribe regions of importance on the image. 
 
-        <button type="button" class="btn btn-success" id="quantNext" data-target="#filtercarousel" data-slide-to="3" href="#">Next</button>
+        <button type="button" class="btn btn-success">Next</button>
       </div>
   
       <div class="item" style="text-align:center">
@@ -204,23 +153,6 @@
             <button type="button" class="btn btn-success">Run</button>
             <button type="button" class="btn btn-danger">Cancel</button>
         </div>
-      </div>
-
-      <div class="item" style="text-align:center; align-items:center;">
-        <H4>Script is running. Please wait for results.</H4>
-        <div style="
-        border: 16px solid #f3f3f3;
-        border-top: 16px solid #3498db;
-        border-radius: 50%;
-        width: 120px;
-        height: 120px;
-        animation: spin 2s linear infinite;
-        margin:0 auto;"></div>
-        <br>
-        <button type="button" class="btn btn-success" onclick="resetFilters()">Get Results</button>
-      </div>
-      <div class="item" style="text-align:center; align-items:center;">
-        <H4>Results</H4>
       </div>
     </div>
   
@@ -233,6 +165,59 @@
       <span class="glyphicon glyphicon-chevron-right"></span>
       <span class="sr-only">Next</span>
     </a>
+  </div>
+
+  <h1>After carousel</h1>
+
+  <div class="bisviewerwidget">
+    <bisweb-viewerlayoutelement
+      id="viewer_layout"
+      bis-dockwidth=6000
+      bis-coreopen="true"
+      bis-fixed="1"
+      bis-webgl="2"
+      bis-defaulttext="">
+    </bisweb-viewerlayoutelement>
+    
+    <bisweb-orthogonalviewer
+      id="viewer"
+      bis-volumerendering="1"
+      bis-layoutwidgetid="#viewer_layout">
+    </bisweb-orthogonalviewer>
+    
+
+    <bisweb-modulemanager
+      id="modulemanager"
+      bis-mode="single"
+      bis-layoutwidgetid="#viewer_layout"
+      bis-viewerid="#viewer">
+    </bisweb-modulemanager>
+
+    <bisweb-viewerapplication
+      id="viewer_application"
+      bis-menubarid="#viewer_menubar"
+      bis-graphelementid="#bisweb_graphelement"
+      bis-dicomimportid="#dicom_import"
+      bis-modulemanagerid="#modulemanager"
+      bis-viewerid="#viewer"
+      bis-filetreepipelineid="#filetreepipeline">
+    </bisweb-viewerapplication>
+
+    <tumor-filters bis-viewerid="#viewer"
+                        bis-layoutwidgetid="#viewer_layout"></tumor-filters>
+
+    <demographic-filters bis-viewerid="#viewer"
+                        bis-layoutwidgetid="#viewer_layout"></demographic-filters>
+
+    <region-identifier bis-viewerid="#viewer"
+                        bis-layoutwidgetid="#viewer_layout"></region-identifier>
+
+    <submit-filters bis-viewerid="#viewer"
+                        bis-layoutwidgetid="#viewer_layout"></submit-filters>
+
+    <filter-element bis-viewerid="#viewer"
+                        bis-layoutwidgetid="#viewer_layout"></filter-element>
+
   </div>
 
   

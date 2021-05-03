@@ -40,6 +40,7 @@ require('bisweb_demographicfilters.js');
 require('bisweb_regionidentifier.js');
 require('bisweb_submitfilters.js');
 require('bisweb_filterelement.js');
+require('bisweb_filtercarousel.js');
 
 
 const webutil = require('bis_webutil');
