@@ -64,20 +64,37 @@
 
 <body oncontextmenu="return false;" ondragstart="return false;" ondrop="return false;">
 
-  <bisweb-topmenubar   id="viewer_menubar"></bisweb-topmenubar> 
+  <!-- <bisweb-topmenubar   id="viewer_menubar"></bisweb-topmenubar> -->
+  <nav class="navbar navbar-primary bg-primary">
+    <a class="navbar-brand" href="./index.html" style="color:white">BENG406</a>
+  </nav>
 
-  <br>
-  <br>
-  <br>
-  <h1>Testing</h1>
+  <h1 id="carouselTitle" style="text-align:center">Tumor Search Tool</h1>
 
-  <div id="filtercarousel" class="carousel slide" data-ride="carousel" data-interval="false" style="overflow: visible">
+  <div id="filtercarousel" class="carousel slide" data-ride="carousel" data-interval="false" style="overflow: visible; height: 500px">
   
     <!-- Wrapper for slides -->
     <div class="carousel-inner">
-      <div class="item active" style="text-align:center">
-        <H4>Select Filters</H4>
-        Select which features you would like to search for. 
+      <div class="item active" style="text-align:center" id="firstslide">
+        <!--<a class="btn" href="C:\Users\kmcru\Documents\BENG406_Code\data">File Open</a>-->
+        <p>This tool will help you find cases similar to the entered tumor.</p>
+        <br />
+        <p>To begin, please upload a nifti file of your selected tumor.</p>
+        <script>
+          function mockSelect(){
+            document.getElementById("mocktumor").style.visibility = "visible";
+            document.getElementById("firstpagenext").style.visibility = "visible";
+          }
+          function changeTitle(newTitle){
+            document.getElementById("carouselTitle").innerHTML = newTitle;
+          }
+        </script>
+        <input onchange="mockSelect()" style="text-align:center; margin: auto;" type="file" id="myfile" name="myfile">
+        <img id="mocktumor" src="data/dataset1/RIDER Neuro MRI-2777879824_sag_3d_flair_+c_19050222000000_17.png" style="text-align:center; margin: auto; height:300px; visibility: hidden;">
+        <button onclick="changeTitle('Select Filters')" id="firstpagenext" type="button" id="buttonNextMain" class="btn btn-success" style="visibility: hidden;" data-target="#filtercarousel" data-slide-to="1" href="#">Next</button>
+      </div>
+      <div class="item" style="text-align:center">
+        <p>Select which filters you would like to apply to the search tool.</p>
 
         <div class="form-check">
             <input class="form-check-input" type="checkbox" value="" id="demofilter">
@@ -106,50 +123,71 @@
             var demoCheckBox = document.getElementById("demofilter");
             var quantCheckBox = document.getElementById("quantfilter");
             var qualCheckBox = document.getElementById("qualfilter");
+            changeTitle('Verify Selected Filters');
             if (demoCheckBox.checked == true){
               demoFilters = true;
-              document.getElementById("buttonNext").setAttribute('data-slide-to', "1");
+              document.getElementById("buttonNext").setAttribute('data-slide-to', "2");
               //data-target="#filtercarousel" data-slide-to="2" href="#"
+              changeTitle('Enter Filtering Information');
             }
             if (quantCheckBox.checked == true){
               quantFilters = true;
               if(demoFilters == false){
-                document.getElementById("buttonNext").setAttribute('data-slide-to', "2");
+                document.getElementById("buttonNext").setAttribute('data-slide-to', "3");
               }
+              document.getElementById("quantfilterpresent").innerHTML = "Areas of importance specified."
+              changeTitle('Enter Filtering Information');
             }
             if (qualCheckBox.checked == true){
               qualFilters = true;
+              document.getElementById("qualfilterpresent").innerHTML = "Qualitative report generated."
             }
           }
 
           function demoButtonExecute(){
             if(quantFilters == true){
-              document.getElementById("demoNext").setAttribute('data-slide-to', "2");
+              document.getElementById("demoNext").setAttribute('data-slide-to', "3");
             }
+            else{
+              changeTitle('Verify Selected Filters');
+            }
+            document.getElementById("demofilterpresent").innerHTML = "Age: " + document.getElementById("ageNumber").value;
+            document.getElementById("demofilterpresentweight").style.display = "block";
+            document.getElementById("demofilterpresentweight").innerHTML = "Weight: " + document.getElementById("weightNumber").value;
           }
 
           function selectRace(selectedRace){
             var caratButton = "<span class='caret'></span>";
             document.getElementById("raceButton").innerHTML = "Race: " + selectedRace + caratButton;
+            document.getElementById("demofilterpresentrace").style.display = "block";
+            document.getElementById("demofilterpresentrace").innerHTML = "Race: " + selectedRace;
           }
 
           function selectSex(selectedSex){
             var caratButton = "<span class='caret'></span>";
             document.getElementById("sexButton").innerHTML = "Sex: " + selectedSex + caratButton;
+            document.getElementById("demofilterpresentsex").style.display = "block";
+            document.getElementById("demofilterpresentsex").innerHTML = "Sex: " + selectedSex;
           }
 
           function resetFilters(){
             demoFilters = false;
             quantFilters = false;
             qualFilters = false;
+            changeTitle('Await Results');
+          }
+
+          function changecarousel(){
+            document.getElementById("firstslide").class = "item";
+            document.getElementById("verification").class = "item active";
           }
         </script>
 
-        <button type="button" id="buttonNext" onclick="checkboxFilters()" class="btn btn-success" data-target="#filtercarousel" data-slide-to="3" href="#">Next</button>
+        <button type="button" id="buttonNext" onclick="checkboxFilters()" class="btn btn-success" data-target="#filtercarousel" data-slide-to="4" href="#">Next</button>
       </div>
 
-      <div class="item" style="text-align:center" id="demographicinfo">
-        <H4>Enter Demographic Information</H4>
+      <div class="item" style="text-align:center" id="demographicinfo" style="height:800px; background-color: red;">
+        <H4 style="color:#3498db">Enter Demographic Information</H4>
         Select which features you would like to search for. 
 
         <div>                       
@@ -169,8 +207,8 @@
             </ul>
         </div>
         <br>
-        <div class="btn-group dropdown">
-            <button class="btn btn-primary dropdown-toggle" id="raceButton" type="button" id="dropdownMenuButton" style="width:400px" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <div class="btn-group dropdown" >
+            <button class="btn btn-primary dropdown-toggle" id="raceButton" type="button" id="dropdownMenuButton" style="width:400px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 Race
                 <span class="caret"></span></button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
@@ -182,33 +220,62 @@
                 <li><a class="dropdown-item" href="#" onClick="selectRace('Other Enter Below')">Other Enter Below</a></li>
             </ul>
         </div>
-
+        <br>
+        <br>
+        <br>
+        <br>
+        <br>
         <br>
 
-        <button type="button" class="btn btn-success" id="demoNext" onClick="demoButtonExecute()" data-target="#filtercarousel" data-slide-to="3" href="#">Next</button>
+        <button type="button" class="btn btn-success" id="demoNext" onClick="demoButtonExecute()" data-target="#filtercarousel" data-slide-to="4" href="#">Next</button>
       </div>
   
       <div class="item" style="text-align:center" id="quantitativefilter">
-        <H4>Identify Tumor Regions of Importance</H4>
-        <p>Use your cursor to circumscribe regions of importance on the image. </p>
+        <H4 style="color:#3498db">Identify Tumor Regions of Importance</H4>
+        <p>Instructions: On the next page, use your cursor to circumscribe regions of importance on the image. </p>
         <br>
+        <a class="btn btn-success" href="editor.html" target="_blank" onclick="changeTitle('Verify Selected Filters');"> Next </a>
 
-        <button type="button" class="btn btn-success" id="quantNext" data-target="#filtercarousel" data-slide-to="3" href="#">Next</button>
+        <!--<button type="button" class="btn btn-success" id="quantNext" data-target="#filtercarousel" data-slide-to="4" href="#">Next</button>-->
       </div>
   
-      <div class="item" style="text-align:center">
-        <H4>Verify Filtering Information</H4>
-        Please verify the below information is correct before running tumor identification. 
+      <div class="item" style="text-align:center" id="verification">
+        <p>Please verify the below information is correct before running tumor identification.</p>
+        <br>
+
+        <h4 style="color:#3498db">Demographic Filters</h4>
+        <p id="demofilterpresent">None</p>
+        <p id="demofilterpresentweight" style="display: none;">Weight: None</p>
+        <p id="demofilterpresentrace" style="display: none;">Race: None</p>
+        <p id="demofilterpresentsex" style="display: none;">Sex: None</p>
+
+        <h4 style="color:#3498db">Quanitative Filters</h4>
+        <p id="quantfilterpresent">None</p>
+
+        <h4 style="color:#3498db">Qualitative Filters</h4>
+        <p id="qualfilterpresent">None</p>
+
+        <script>
+          function timingFunction(){
+            changeTitle('Identifying Similar Tumors');
+            document.getElementById('getResults').style.display ='none'; //first hide the button
+            setTimeout(function(){ //using setTimeout function
+              document.getElementById('getResults').style.display ='inline'; //displaying the button again after 3000ms or 3 seconds
+              document.getElementById("loadingCircle").style.visibility = 'hidden';
+            }
+          ,3000); 
+          }
+        </script>
 
         <div> 
-            <button type="button" class="btn btn-success">Run</button>
+            <button type="button" onclick="timingFunction()" class="btn btn-success" data-target="#filtercarousel" data-slide-to="5" href="#">Run</button>
             <button type="button" class="btn btn-danger">Cancel</button>
         </div>
       </div>
 
       <div class="item" style="text-align:center; align-items:center;">
         <H4>Script is running. Please wait for results.</H4>
-        <div style="
+        <div id="loadingCircle" style="
         border: 16px solid #f3f3f3;
         border-top: 16px solid #3498db;
         border-radius: 50%;
@@ -217,14 +284,69 @@
         animation: spin 2s linear infinite;
         margin:0 auto;"></div>
         <br>
-        <button type="button" class="btn btn-success" onclick="resetFilters()">Get Results</button>
+        <button id="getResults" type="button" class="btn btn-success" onclick="changeTitle('Results')" data-target="#filtercarousel" data-slide-to="6" href="#">Get Results</button>
       </div>
       <div class="item" style="text-align:center; align-items:center;">
-        <H4>Results</H4>
+        <div class="panel panel-default" style="height:450px; float:left; width:50%; overflow-x: hidden;">
+          <div class="panel-heading">Reference Tumor</div>
+          <div class="panel-body">
+            <img src="data/dataset1/RIDER Neuro MRI-2777879824_sag_3d_flair_+c_19050222000000_17.png" style="text-align:center; margin: auto; height:350px;">
+            <br>
+            <!--<p style="float:left;">
+              Filters:
+            </p>-->
+          </div>
+        </div>
+        <div class="panel panel-default " style="height:450px; float:right; width:50%; overflow-x: hidden;">
+          <div class="panel-heading">Results</div>
+          <div class="panel-body">
+            <div class="panel panel-primary">
+              <div class="panel-heading">Case #2783961675</div>
+              <div class="panel-body">
+                <img src="data/dataset1/RIDER Neuro MRI-2783961675_sag_3d_flair_+c_19040603000000_22.png" style="text-align:center; margin: auto; height:250px;">
+                <br>
+                <a style="float:right;">details...</a>
+              </div>
+            </div>
+            <div class="panel panel-primary">
+              <div class="panel-heading">Case #3369019796</div>
+              <div class="panel-body">
+                <img src="data/dataset1/RIDER Neuro MRI-3369019796_sag_3d_flair_+c_19040323000000_17.png" style="text-align:center; margin: auto; height:250px;">
+                <br>
+                <a style="float:right;">details...</a>
+              </div>
+            </div>
+            <div class="panel panel-primary">
+              <div class="panel-heading">Case #3115670549</div>
+              <div class="panel-body">
+                <img src="data/dataset1/RIDER Neuro MRI-3115670549_sag_3d_flair_+c_19040612000000_16.png" style="text-align:center; margin: auto; height:250px;">
+                <br>
+                <a style="float:right;">details...</a>
+              </div>
+            </div>
+            <div class="panel panel-primary">
+              <div class="panel-heading">Case #2777879824</div>
+              <div class="panel-body">
+                <img src="data/dataset1/RIDER Neuro MRI-2777879824_sag_3d_flair_+c_19050222000000_17.png" style="text-align:center; margin: auto; height:250px;">
+                <br>
+                <a style="float:right;">details...</a>
+              </div>
+            </div>
+            <div class="panel panel-primary">
+              <div class="panel-heading">Case #3183286461</div>
+              <div class="panel-body">
+                <img src="data/dataset1/RIDER Neuro MRI-3183286461_sag_3d_flair_+c_19050210000000_17.png" style="text-align:center; margin: auto; height:250px;">
+                <br>
+                <a style="float:right;">details...</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   
     <!-- Left and right controls -->
+    <!--
     <a class="left carousel-control" href="#filtercarousel" data-slide="prev">
       <span class="glyphicon glyphicon-chevron-left"></span>
       <span class="sr-only">Previous</span>
@@ -232,7 +354,8 @@
     <a class="right carousel-control" href="#filtercarousel" data-slide="next">
       <span class="glyphicon glyphicon-chevron-right"></span>
       <span class="sr-only">Next</span>
-    </a>
+    </a>-->
+    
   </div>
 
   

@@ -67,6 +67,7 @@ class TopMenuBarElement extends HTMLElement {
         <ul class="nav navbar-nav" id="bismenuparent">
         </ul>
     </div><!-- /.navbar-collapse -->
+    <a href="./viewer.html" class="btn btn-success" style="top: 15%; left: 95%; position: absolute">Next</a>
     </div><!-- /.container-fluid -->
         </nav>`;
 
